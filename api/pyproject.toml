@@ -1,0 +1,14 @@
+[project]
+name = "api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "boto3>=1.40.9",
+    "fastapi>=0.116.1",
+    "immudb-py>=1.5.0",
+    "pydantic>=2.11.7",
+    "pyjwt[crypto]>=2.8.0",
+    "sqlalchemy>=2.0.43",
+]

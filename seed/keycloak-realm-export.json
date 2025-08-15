@@ -1,0 +1,96 @@
+{
+  "realm": "dpp",
+  "enabled": true,
+  "sslRequired": "NONE",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "verifyEmail": false,
+  "rememberMe": false,
+
+  "roles": {
+    "realm": [
+      { "name": "user", "composite": false, "clientRole": false, "containerId": "dpp" },
+      { "name": "admin", "composite": false, "clientRole": false, "containerId": "dpp" }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "dpp-portal",
+      "name": "DPP Portal",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": ["roles", "web-origins", "profile", "email"],
+      "optionalClientScopes": ["address", "phone", "microprofile-jwt"],
+      "protocolMappers": [
+        {
+          "name": "audience dpp-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "dpp-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "dpp-api",
+      "name": "DPP API",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "api-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "defaultClientScopes": ["roles", "web-origins", "profile", "email"],
+      "optionalClientScopes": ["address", "phone", "microprofile-jwt"],
+      "attributes": {
+        "access.token.lifespan": "3600"
+      }
+    }
+  ],
+
+  "users": [
+    {
+      "username": "demo",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "User",
+      "email": "demo@example.org",
+      "credentials": [
+        { "type": "password", "value": "demo", "temporary": false }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "DPP",
+      "lastName": "Admin",
+      "email": "admin@example.org",
+      "credentials": [
+        { "type": "password", "value": "admin", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
+    }
+  ]
+}
