@@ -9,8 +9,9 @@ from typing import Any, Dict, List, Optional
 import requests
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import jwt
-from jwt import PyJWKClient, InvalidTokenError
+from jwt import decode as jwt_decode
+from jwt import PyJWKClient
+from jwt.exceptions import InvalidTokenError
 
 # ---------- Configuration via env ----------
 OIDC_ISSUER_URL = os.getenv("OIDC_ISSUER_URL", "http://keycloak:8080/realms/dpp").rstrip("/")
@@ -63,7 +64,7 @@ def _decode_and_verify(token: str, issuer: str, audience: Optional[str]) -> Dict
 
     options = {"verify_aud": bool(audience)}
     try:
-        claims = jwt.decode(
+        claims = jwt_decode(
             token,
             signing_key,
             algorithms=OIDC_ALGS,
