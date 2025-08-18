@@ -26,7 +26,24 @@ services:
     image: codenotary/immudb:latest
     ports: ["3322:3322"]
     healthcheck:
-      test: ["CMD", "immuclient", "health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/readyz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Dedicated ImmuClient service for administrative tasks
+  immuclient:
+    image: codenotary/immuclient:latest
+    depends_on:
+      - immudb
+    environment:
+      IMMUCLIENT_IMMUDB_ADDRESS: immudb:3322
+    profiles:
+      - tools  # Only start when explicitly requested
+    command: ["sh", "-c", "sleep infinity"]  # Keep container running
+    networks:
+      - default
 
   keycloak:
     image: quay.io/keycloak/keycloak:latest
@@ -48,7 +65,6 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8181/health"]
 
-
   api:
     build: ./api
     environment:
@@ -59,8 +75,18 @@ services:
       OIDC_ISSUER_URL: http://keycloak:8080/realms/dpp
       OIDC_AUDIENCE: dpp-api
       OPA_URL: http://opa:8181/v1/data/dpp/allow
-      IMMUDb_ADDR: immudb:3322
-    depends_on: [postgres, minio, keycloak, opa, immudb]
+      IMMUDB_ADDR: immudb:3322
+    depends_on: 
+      immudb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+      opa:
+        condition: service_healthy
     ports: ["8000:8000"]
 
   portal:
