@@ -43,13 +43,11 @@ services:
       retries: 30
 
   opa:
-    image: openpolicyagent/opa:latest
-    command: ["run", "--server", "/policies/bundle.rego", "/policies/data.json"]
-    volumes:
-      - ./opa:/policies
+    build: ./opa
     ports: ["8181:8181"]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8181/health"]
+
 
   api:
     build: ./api

@@ -135,7 +135,6 @@ class DppVersion(Base):
 
     __table_args__ = (
         UniqueConstraint("dpp_id", "version", name="uq_dpp_version_id_ver"),
-        Index("ix_dpp_version_valid_from", "valid_from"),
     )
 
 
