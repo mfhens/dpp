@@ -189,34 +189,6 @@ if (-not (Test-Path $securityDir)) {
     New-Item -ItemType Directory -Path $securityDir -Force | Out-Null
 }
 
-# Update .gitignore
-$gitignoreContent = @"
-# Secrets and sensitive data
-secrets/
-.env
-data/
-*.key
-*.pem
-*.crt
-
-# Docker
-.docker/
-
-# Logs
-*.log
-logs/
-
-# Temporary files
-*.tmp
-*.temp
-
-# Windows
-Thumbs.db
-Desktop.ini
-"@
-
-[System.IO.File]::WriteAllText("$PWD\.gitignore", $gitignoreContent, [System.Text.Encoding]::UTF8)
-
 Write-Host ""
 Write-Host "Security setup completed!" -ForegroundColor Green
 Write-Host ""
