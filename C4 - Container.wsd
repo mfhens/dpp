@@ -1,0 +1,175 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+' C2: Internal containers only (no externals)
+LAYOUT_TOP_DOWN()
+TITLE "Sandvik DPP Platform — C2: Containers (Internal Only)"
+
+System_Boundary(secops, "Security & Ops") {
+  System_Ext(idp, "Auth Server", "OAuth2 / OIDC", "Tokens; federation")
+  System_Ext(vault, "KMS / Secrets", "HSM / Vault", "Keys & certificates; signing")
+  System_Ext(obs, "Observability", "Logs / Traces / Metrics", "End-to-end monitoring")
+}
+
+System_Boundary(sandvik, "Sandvik DPP Platform") {
+  ' --- Row 1: Core services ---
+  together {
+    Container_Boundary(core, "Core Services") {
+      Container(api, "DPP API Gateway", "K8s / Ingress", "REST/JSON-LD; lifecycle & search endpoints")
+      Container(pdp, "Policy Decision Point (AuthZ)", "OPA / ABAC", "Field-level filtering; scopes & roles")
+      Container(uid, "Identifier Management", "Service", "UID generation/validation; alias graph")
+      Container(interop, "Interoperability Broker", "Service", "Schema mapping; vocab/contexts; validation")
+      Container(regsync, "EU Registry Connector", "Service", "Register/update; reconcile state")
+      Container(carrier, "Carrier Encoder", "Service", "Encode QR/DM/NFC/UHF; artwork; verifier ingest")
+      Container(edge, "Edge Sync Agent", "Agent", "Offline cache & sync for mines/workshops")
+      Container(portal, "Public/Partner Portal", "Web", "Public view + B2B dashboards")
+      Container(mobile, "Field App", "Mobile", "Scan; offline; sign lifecycle events")
+      Container(eventbus, "Event Bus", "Kafka / AMQP", "Lifecycle & telemetry streams")
+      Container(backup, "Escrow Sync", "Replicator", "Mirror immutable snapshots")
+    }
+  }
+
+  ' --- Row 2: Data + SecOps under Core ---
+  Container_Boundary(data, "Data Stores") {
+    ContainerDb(dppdb, "DPP Store", "RDBMS / Document", "Authoritative passports; versioning")
+    ContainerDb(audit, "Audit Log", "Append-only / WORM", "Tamper-evident history")
+    ContainerDb(obj, "Object Store", "WORM Object", "Attachments; schemas; contexts")
+    Container(cdn, "Edge Cache / CDN", "Edge", "Low-latency public reads")
+  }
+}
+
+' Internal relationships only
+Rel(portal, api, "Consume APIs")
+Rel(mobile, api, "Sync & lifecycle events")
+Rel(edge, api, "Sync (offline/online)")
+Rel(edge, eventbus, "Telemetry publish")
+Rel(api, pdp, "AuthZ decisions")
+Rel(api, uid, "Resolve/validate IDs")
+Rel(api, interop, "Map/validate payloads")
+Rel(api, data, "CRUD passports/Attachments/Append audit events")
+Rel(api, eventbus, "Publish lifecycle events")
+Rel(api, regsync, "Submit registration")
+Rel(carrier, audit, "Marking QA events")
+Rel(carrier, eventbus, "Verifier grades")
+Rel(uid, dppdb, "Persist ID graph")
+Rel(backup, data, "Snapshot & mirror")
+Rel(api, idp, "Token validation/JWKS")
+Rel(core, obs, "Logs/metrics/traces", "OTLP")
+
+@enduml
+
+
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' C3: API Gateway components (internal only)
+LAYOUT_TOP_DOWN()
+TITLE "DPP API Gateway — C3: Components"
+
+Container_Boundary(api, "DPP API Gateway") {
+  Component(api_read, "Public Read API", "REST", "GET /dpp/{id}, /search")
+  Component(api_lifecycle, "Lifecycle API", "REST", "POST /events (repair/refurb/EoL)")
+  Component(api_search, "Search API", "REST", "Query by model/batch/attributes")
+  Component(api_resolver, "UID Resolver", "Service", "UID -> canonical; GS1 DL/IEC 61406")
+  Component(api_filter, "Access Filter", "Policy", "Field-level redaction via OPA")
+  Component(api_version, "Versioning/Framing", "Lib", "v1/v2; JSON-LD framing")
+  Component(api_webhook, "Webhook Dispatcher", "Worker", "Partner notifications")
+}
+
+Rel(api_read, api_filter, "Authorize/filter")
+Rel(api_lifecycle, api_filter, "Authorize")
+Rel(api_search, api_filter, "Authorize")
+Rel(api_read, api_resolver, "Resolve UID")
+Rel(api_lifecycle, api_resolver, "Validate IDs")
+Rel(api_search, api_resolver, "Resolve IDs")
+Rel(api_read, api_version, "Frame/shape")
+Rel(api_lifecycle, api_version, "Frame/shape")
+Rel(api_search, api_version, "Frame/shape")
+Rel(api_lifecycle, api_webhook, "Emit events")
+@enduml
+
+
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' C3: Identifier & Interoperability services
+LAYOUT_TOP_DOWN()
+TITLE "Identifier Management & Interoperability — C3: Components"
+
+Container_Boundary(uid, "Identifier Management") {
+  Component(uid_gen, "UID Generator", "Service", "Pre-allocate pools; ULID/GS1/IEC")
+  Component(uid_val, "UID Validator", "Service", "Checksum, format, uniqueness")
+  Component(uid_graph, "Alias Graph", "Repo", "Old<->new links; model/batch/item")
+  Component(uid_outbox, "ID Events Outbox", "Queue", "Change events -> Event Bus")
+}
+
+Container_Boundary(interop, "Interoperability Broker") {
+  Component(map_engine, "Mapping Engine", "Service", "ERP/MES/PLM -> DPP canonical")
+  Component(schema_reg, "Schema Registry Client", "Client", "JSON Schema; compat checks")
+  Component(jsonld_ctx, "JSON-LD Context Manager", "Repo", "Contexts; framing profiles")
+  Component(shacl, "Validator", "Service", "Structural/semantic validation")
+  Component(dq, "DLQ / Quarantine", "Queue", "Failed transforms")
+}
+
+Rel(uid_gen, uid_graph, "Write allocations")
+Rel(uid_val, uid_graph, "Check & read")
+Rel(uid_outbox, map_engine, "Broadcast ID changes")
+Rel(map_engine, schema_reg, "Get schemas")
+Rel(map_engine, jsonld_ctx, "Apply contexts")
+Rel(map_engine, shacl, "Validate")
+Rel(map_engine, dq, "On failure -> quarantine")
+@enduml
+
+
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' C3: Persistence & Audit components
+LAYOUT_TOP_DOWN()
+TITLE "Persistence & Audit — C3: Components"
+
+Container_Boundary(store, "DPP Store & Audit") {
+  Component(repo, "DPP Repository", "Repo", "CRUD with versioning")
+  Component(ver, "Versioning Service", "Service", "Time-travel; as-of queries")
+  Component(acl, "Row/Field ACL", "Policy", "Access tiers & RLS helpers")
+  Component(audit_app, "Audit Appender", "Service", "Append signed events; hash chain")
+  Component(snapshot, "Snapshotter", "Worker", "Periodic immutable snapshots")
+}
+
+Rel(repo, ver, "Read/write versions")
+Rel(repo, acl, "Enforce access tiers")
+Rel(audit_app, snapshot, "Seal and ship")
+@enduml
+
+
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' C3: Carrier Encoder & Edge Agent components
+LAYOUT_TOP_DOWN()
+TITLE "Carrier Encoder & Edge Agent — C3: Components"
+
+Container_Boundary(carrier, "Carrier Encoder") {
+  Component(payload, "Payload Encoder", "Service", "GS1 DL/compact URIs; ECC")
+  Component(art, "Artwork Generator", "Service", "SVG/PNG/HPGL for lasers")
+  Component(verif, "Verifier Ingest", "Service", "ISO 29158 grades; SPC")
+  Component(rfidprog, "RFID Programmer", "Service", "NFC/UHF program & verify")
+  Component(recipes, "Recipe Manager", "Repo", "Per-material parameters")
+}
+
+Container_Boundary(edge, "Edge Sync Agent") {
+  Component(localcache, "Local Cache", "DB", "DPP fragments; attachments (partial)")
+  Component(sync, "Sync Engine", "Service", "Write-behind; retries; conflict merge")
+  Component(conflict, "Conflict Resolver", "Lib", "Vector clocks / CRDT")
+  Component(scanner, "Scanner Interface", "Adapter", "Camera/NFC readers")
+  Component(keys, "Device Keys", "Keystore", "mTLS; signing")
+}
+
+Rel(payload, art, "Generate mark files")
+Rel(verif, recipes, "Tune parameters")
+Rel(sync, localcache, "Read/write")
+Rel(sync, conflict, "Merge strategy")
+Rel(scanner, localcache, "Read")
+Rel(scanner, sync, "Submit events")
+Rel(keys, sync, "Sign requests")
+@enduml
