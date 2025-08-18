@@ -1,10 +1,11 @@
-# audit.py
 from __future__ import annotations
 
 import json
 import os
 import hashlib
 import time
+import logging
+
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -21,6 +22,15 @@ try:
 except Exception:
     _IMMUD_AVAILABLE = False
 
+
+# Configure logging for Docker: output to stdout, level from env
+LOG_LEVEL = os.getenv("AUDIT_LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger("dpp.audit")
 
 def _audit_local_append(event: str, payload: Dict[str, Any]) -> None:
     _LOCAL_AUDIT_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -49,9 +59,9 @@ def _audit_immudb_append(event: str, payload: Dict[str, Any]) -> None:
     if not _IMMUD_AVAILABLE or not _IMMU_ADDR:
         raise RuntimeError("immudb client not available or IMMUDb_ADDR not set")
 
-    host, port = _IMMU_ADDR.split(":")[0], int(_IMMU_ADDR.split(":")[1])
-    c = ImmudbClient(host=host, port=port)
-    c.login(_IMMU_USER, _IMMU_PASS)  # default creds for local dev
+    c = ImmudbClient(_IMMU_ADDR)
+    c.login(_IMMU_USER, _IMMU_PASS)
+    
     # store as key-value with time-based keys; immudb keeps verifiable history
     key = f"dpp:audit:{int(time.time() * 1e6)}:{event}".encode("utf-8")
     val = json.dumps({"event": event, "payload": payload, "ts": int(time.time() * 1000)}).encode("utf-8")
@@ -64,12 +74,14 @@ def audit_append(event: str, payload: Dict[str, Any]) -> None:
     Append an audit event. Tries immudb first when configured, falls back to a local
     hash-chained append-only log file to preserve verifiability in the prototype.
     """
+    logger.debug(f"Audit event: {event} | Data: {payload}")
     try:
         if _IMMUD_AVAILABLE and _IMMU_ADDR:
             _audit_immudb_append(event, payload)
+            logger.info(f"Audit event '{event}' logged to immudb.")
             return
-    except Exception:
-        # fall through to local file on any immudb errors
-        pass
+    except Exception as e:
+        logger.warning(f"Audit event '{event}' failed to log to immudb: {e}. Falling back to local log.")
 
     _audit_local_append(event, payload)
+    logger.info(f"Audit event '{event}' logged locally.")
