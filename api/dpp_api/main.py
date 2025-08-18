@@ -141,6 +141,19 @@ def resolve_dpp(
     else:
         v = get_latest_dpp_version(db, dpp_id)
 
+    # Audit every query call, including failures
+    audit_data = {
+        "dpp_id": dpp_id,
+        "actor": getattr(token, "sub", None),
+        "at": at,
+        "success": bool(v),
+        "version": v.version if v else None,
+    }
+    try:
+        audit_append("dpp.query", audit_data)
+    except Exception:
+        pass
+
     if not v:
         raise HTTPException(status_code=404, detail="Not found")
 

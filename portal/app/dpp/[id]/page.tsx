@@ -7,19 +7,40 @@ async function getDpp(id: string, at?: string) {
   const u = new URL(`${base}/dpp/${id}`);
   if (at) u.searchParams.set("at", at);
 
-  const res = await fetch(u.toString(), {
-    headers: { "x-access-tier": "public" },
-    cache: "no-store"
-  });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`API error ${res.status}`);
-  return (await res.json()) as ApiDpp;
+  console.log(`[DEBUG] Fetching DPP: url=${u.toString()} id=${id} at=${at}`);
+
+  try {
+    const res = await fetch(u.toString(), {
+      headers: { "x-access-tier": "public" },
+      cache: "no-store"
+    });
+    console.log(`[DEBUG] Response status: ${res.status}`);
+    if (res.status === 404) {
+      console.log(`[DEBUG] DPP not found for id=${id}`);
+      return null;
+    }
+    if (!res.ok) {
+      console.error(`[ERROR] API error ${res.status} for id=${id}`);
+      throw new Error(`API error ${res.status}`);
+    }
+    const json = await res.json();
+    console.log(`[DEBUG] DPP data received:`, json);
+    return json as ApiDpp;
+  } catch (err) {
+    console.error(`[ERROR] Exception in getDpp for id=${id}:`, err);
+    throw err;
+  }
 }
 
 export default async function Page({ params, searchParams }: { params: { id: string }, searchParams?: { at?: string } }) {
+  console.log(`[DEBUG] Page params:`, params, searchParams);
   const data = await getDpp(params.id, searchParams?.at);
-  if (!data) return <div className="p-4">DPP not found</div>;
+  if (!data) {
+    console.log(`[DEBUG] Rendering 'DPP not found' for id=${params.id}`);
+    return <div className="p-4">DPP not found</div>;
+  }
 
+  console.log(`[DEBUG] Rendering DPP page for id=${data.dpp_id} version=${data.version}`);
   return (
     <div className="space-y-4">
       <div>

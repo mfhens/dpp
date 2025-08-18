@@ -68,7 +68,7 @@ services:
     environment:
       NEXT_PUBLIC_OIDC_ISSUER: http://localhost:8080/realms/dpp
       NEXT_PUBLIC_CLIENT_ID: dpp-portal
-      API_BASE: http://localhost:8000
+      API_BASE: http://api:8000
     depends_on: [api]
     ports: ["3000:3000"]
 
