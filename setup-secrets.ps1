@@ -9,9 +9,9 @@ $ErrorActionPreference = "Stop"
 
 # Configuration
 $SecretsDir = "$PWD\secrets"
-$EnvFile   = "$PWD\.env"
+$EnvFile = "$PWD\.env"
 
-Write-Host "Setting up secure secrets management for Windows..." -ForegroundColor Green
+Write-Host "🔐 Setting up secure secrets management for Windows..." -ForegroundColor Green
 
 # Create directories
 if (-not (Test-Path $SecretsDir)) {
@@ -37,7 +37,7 @@ function New-SecurePassword {
     $rng.GetBytes($bytes)
     $password = [Convert]::ToBase64String($bytes)
     $rng.Dispose()
-    return ($password -replace '[/+=]', '')
+    return $password -replace '[/+=]', ''
 }
 
 function New-SecureKey {
@@ -52,22 +52,22 @@ function New-SecureKey {
 # Create secret file
 function Set-Secret {
     param(
-        [Parameter(Mandatory=$true)][string]$Name,
-        [Parameter(Mandatory=$true)][string]$Value
+        [string]$Name,
+        [string]$Value
     )
-
+    
     $filePath = Join-Path $SecretsDir "$Name.txt"
-
+    
     if ((Test-Path $filePath) -and -not $Force) {
-        Write-Host "$Name already exists (use -Force to overwrite)" -ForegroundColor Yellow
+        Write-Host "⚠️  $Name already exists (use -Force to overwrite)" -ForegroundColor Yellow
         return
     }
-
+    
     # Write secret to file (UTF8 without BOM)
     $utf8 = New-Object System.Text.UTF8Encoding $false
     [System.IO.File]::WriteAllText($filePath, $Value, $utf8)
-
-    Write-Host "Generated $Name" -ForegroundColor Green
+    
+    Write-Host "✓ Generated $Name" -ForegroundColor Green
 }
 
 Write-Host "Generating database secrets..." -ForegroundColor Yellow
@@ -145,7 +145,7 @@ $verifyScriptContent = @'
 $SecretsDir = "$PWD\secrets"
 $RequiredSecrets = @(
     "postgres_user",
-    "postgres_password",
+    "postgres_password", 
     "minio_root_user",
     "minio_root_password",
     "immudb_admin_password",
@@ -159,7 +159,7 @@ $RequiredSecrets = @(
     "vault_token"
 )
 
-Write-Host "Verifying secrets configuration..." -ForegroundColor Cyan
+Write-Host "🔍 Verifying secrets configuration..." -ForegroundColor Cyan
 
 $missingSecrets = @()
 foreach ($secret in $RequiredSecrets) {
@@ -167,17 +167,17 @@ foreach ($secret in $RequiredSecrets) {
     if (-not (Test-Path $filePath)) {
         $missingSecrets += $secret
     } elseif ((Get-Content $filePath -Raw -ErrorAction SilentlyContinue).Length -eq 0) {
-        Write-Host "Warning: $secret file is empty" -ForegroundColor Yellow
+        Write-Host "⚠️  Warning: $secret file is empty" -ForegroundColor Yellow
     } else {
-        Write-Host "$secret configured" -ForegroundColor Green
+        Write-Host "✓ $secret configured" -ForegroundColor Green
     }
 }
 
 if ($missingSecrets.Count -gt 0) {
-    Write-Host "Missing secrets: $($missingSecrets -join ', ')" -ForegroundColor Red
+    Write-Host "❌ Missing secrets: $($missingSecrets -join ', ')" -ForegroundColor Red
     exit 1
 } else {
-    Write-Host "All secrets properly configured" -ForegroundColor Green
+    Write-Host "✅ All secrets properly configured" -ForegroundColor Green
 }
 '@
 
@@ -190,14 +190,14 @@ if (-not (Test-Path $securityDir)) {
 }
 
 Write-Host ""
-Write-Host "Security setup completed!" -ForegroundColor Green
+Write-Host "🎉 Security setup completed!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "1. Review generated secrets in secrets\ directory"
 Write-Host "2. Run: .\verify-secrets.ps1"
 Write-Host "3. Start services: docker-compose up -d"
 Write-Host ""
-Write-Host "IMPORTANT:" -ForegroundColor Red
+Write-Host "⚠️  IMPORTANT:" -ForegroundColor Red
 Write-Host "- secrets\ directory is now in .gitignore"
 Write-Host "- Use a proper secret manager for production"
 Write-Host "- Change default ports for production deployment"
