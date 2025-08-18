@@ -144,6 +144,14 @@ ENV/
 env.bak/
 venv.bak/
 
+# Secrets and sensitive data
+secrets/
+.env
+data/
+*.key
+*.pem
+*.crt
+
 # Spyder project settings
 .spyderproject
 .spyproject
