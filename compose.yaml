@@ -186,31 +186,31 @@ services:
 
 secrets:
   postgres_user:
-    file: ./secrets/postgres_user.txt
+    file: secrets/postgres_user.txt
   postgres_password:
-    file: ./secrets/postgres_password.txt
+    file: secrets/postgres_password.txt
   minio_root_user:
-    file: ./secrets/minio_root_user.txt
+    file: secrets/minio_root_user.txt
   minio_root_password:
-    file: ./secrets/minio_root_password.txt
+    file: secrets/minio_root_password.txt
   immudb_admin_password:
-    file: ./secrets/immudb_admin_password.txt
+    file: secrets/immudb_admin_password.txt
   keycloak_admin_user:
-    file: ./secrets/keycloak_admin_user.txt
+    file: secrets/keycloak_admin_user.txt
   keycloak_admin_password:
-    file: ./secrets/keycloak_admin_password.txt
+    file: secrets/keycloak_admin_password.txt
   database_url:
-    file: ./secrets/database_url.txt
+    file: secrets/database_url.txt
   oidc_client_secret:
-    file: ./secrets/oidc_client_secret.txt
+    file: secrets/oidc_client_secret.txt
   jwt_secret:
-    file: ./secrets/jwt_secret.txt
+    file: secrets/jwt_secret.txt
   encryption_key:
-    file: ./secrets/encryption_key.txt
+    file: secrets/encryption_key.txt
   nextauth_secret:
-    file: ./secrets/nextauth_secret.txt
+    file: secrets/nextauth_secret.txt
   vault_token:
-    file: ./secrets/vault_token.txt
+    file: secrets/vault_token.txt
 
 networks:
   frontend:
