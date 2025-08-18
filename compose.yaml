@@ -2,37 +2,57 @@ services:
   postgres:
     image: postgres:latest
     environment:
-      POSTGRES_USER: dpp
-      POSTGRES_PASSWORD: dpp
-      POSTGRES_DB: dpp
-    ports: ["5432:5432"]
+      POSTGRES_USER_FILE: /run/secrets/postgres_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB: ${POSTGRES_DB:-dpp}
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
+    secrets:
+      - postgres_user
+      - postgres_password
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dpp -d dpp"]
+      test: ["CMD-SHELL", "pg_isready -U $(cat /run/secrets/postgres_user) -d ${POSTGRES_DB:-dpp}"]
       interval: 5s
       retries: 20
+    networks:
+      - backend
 
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio12345
-    ports: ["9000:9000", "9001:9001"]
-    volumes: [ "minio:/data" ]
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    ports: 
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes: 
+      - minio:/data
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    networks:
+      - backend
 
   immudb:
     image: codenotary/immudb:latest
-    ports: ["3322:3322"]
+    ports: ["${IMMUDB_PORT:-3322}:3322"]
+    environment:
+      IMMUDB_ADMIN_PASSWORD_FILE: /run/secrets/immudb_admin_password
+    secrets:
+      - immudb_admin_password
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/readyz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+    volumes:
+      - immudb_data:/var/lib/immudb
+    networks:
+      - backend
 
-  # Dedicated ImmuClient service for administrative tasks
   immuclient:
     image: codenotary/immuclient:latest
     depends_on:
@@ -40,42 +60,73 @@ services:
     environment:
       IMMUCLIENT_IMMUDB_ADDRESS: immudb:3322
     profiles:
-      - tools  # Only start when explicitly requested
-    command: ["sh", "-c", "sleep infinity"]  # Keep container running
+      - tools
+    command: ["sh", "-c", "sleep infinity"]
     networks:
-      - default
+      - backend
 
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     command: start-dev --import-realm
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_ADMIN_FILE: /run/secrets/keycloak_admin_user
+      KEYCLOAK_ADMIN_PASSWORD_FILE: /run/secrets/keycloak_admin_password
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-dpp}
+      KC_DB_USERNAME_FILE: /run/secrets/postgres_user
+      KC_DB_PASSWORD_FILE: /run/secrets/postgres_password
     volumes:
       - ./seed/keycloak-realm-export.json:/opt/keycloak/data/import/realm.json
-    ports: ["8080:8080"]
+      - keycloak_data:/opt/keycloak/data
+    ports: ["${KEYCLOAK_PORT:-8080}:8080"]
+    secrets:
+      - keycloak_admin_user
+      - keycloak_admin_password
+      - postgres_user
+      - postgres_password
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master/.well-known/openid-configuration"]
       interval: 5s
       retries: 30
+    networks:
+      - backend
+      - frontend
 
   opa:
     build: ./opa
-    ports: ["8181:8181"]
+    ports: ["${OPA_PORT:-8181}:8181"]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8181/health"]
+    user: "1001:1001"  # Non-root user
+    networks:
+      - backend
 
   api:
     build: ./api
     environment:
-      DATABASE_URL: postgresql+psycopg://dpp:dpp@postgres:5432/dpp
+      DATABASE_URL_FILE: /run/secrets/database_url
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: minio
-      MINIO_SECRET_KEY: minio12345
+      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_root_user
+      MINIO_SECRET_KEY_FILE: /run/secrets/minio_root_password
       OIDC_ISSUER_URL: http://keycloak:8080/realms/dpp
       OIDC_AUDIENCE: dpp-api
+      OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc_client_secret
       OPA_URL: http://opa:8181/v1/data/dpp/allow
       IMMUDB_ADDR: immudb:3322
+      IMMUDB_PASSWORD_FILE: /run/secrets/immudb_admin_password
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      ENCRYPTION_KEY_FILE: /run/secrets/encryption_key
+    secrets:
+      - database_url
+      - minio_root_user
+      - minio_root_password
+      - oidc_client_secret
+      - immudb_admin_password
+      - jwt_secret
+      - encryption_key
     depends_on: 
       immudb:
         condition: service_healthy
@@ -87,23 +138,115 @@ services:
         condition: service_healthy
       opa:
         condition: service_healthy
-    ports: ["8000:8000"]
+    ports: ["${API_PORT:-8000}:8000"]
+    user: "1001:1001"  # Non-root user
+    networks:
+      - backend
+      - frontend
 
   portal:
     build: ./portal
     environment:
-      NEXT_PUBLIC_OIDC_ISSUER: http://localhost:8080/realms/dpp
+      NEXT_PUBLIC_OIDC_ISSUER: ${PUBLIC_KEYCLOAK_URL:-http://localhost:8080/realms/dpp}
       NEXT_PUBLIC_CLIENT_ID: dpp-portal
       API_BASE: http://api:8000
+      NEXTAUTH_SECRET_FILE: /run/secrets/nextauth_secret
+      NEXTAUTH_URL: ${PUBLIC_PORTAL_URL:-http://localhost:3000}
+    secrets:
+      - nextauth_secret
     depends_on: [api]
-    ports: ["3000:3000"]
+    ports: ["${PORTAL_PORT:-3000}:3000"]
+    user: "1001:1001"  # Non-root user
+    networks:
+      - frontend
 
-  # Optional event bus, off by default
-  # redpanda:
-  #   image: redpandadata/redpanda:latest
-  #   command: redpanda start --mode dev-container --overprovisioned --smp 1 --memory 512M
-  #   ports: ["9092:9092"]
+  # Security monitoring and logging (Windows compatible)
+  security_monitor:
+    image: fluent/fluent-bit:latest
+    volumes:
+      - ./security/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+    profiles:
+      - monitoring
+    networks:
+      - backend
+
+  # Secrets rotation service (demo)
+  secrets_rotator:
+    build: ./security/secrets-rotator
+    environment:
+      ROTATION_INTERVAL: ${SECRETS_ROTATION_INTERVAL:-24h}
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN_FILE: /run/secrets/vault_token
+    secrets:
+      - vault_token
+    profiles:
+      - production
+    networks:
+      - backend
+
+secrets:
+  postgres_user:
+    file: ./secrets/postgres_user.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  minio_root_user:
+    file: ./secrets/minio_root_user.txt
+  minio_root_password:
+    file: ./secrets/minio_root_password.txt
+  immudb_admin_password:
+    file: ./secrets/immudb_admin_password.txt
+  keycloak_admin_user:
+    file: ./secrets/keycloak_admin_user.txt
+  keycloak_admin_password:
+    file: ./secrets/keycloak_admin_password.txt
+  database_url:
+    file: ./secrets/database_url.txt
+  oidc_client_secret:
+    file: ./secrets/oidc_client_secret.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  encryption_key:
+    file: ./secrets/encryption_key.txt
+  nextauth_secret:
+    file: ./secrets/nextauth_secret.txt
+  vault_token:
+    file: ./secrets/vault_token.txt
+
+networks:
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  backend:
+    driver: bridge
+    internal: true  # Backend services cannot reach internet
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
 
 volumes:
   pgdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/postgres
   minio:
+    driver: local
+    driver_opts:
+      type: none  
+      o: bind
+      device: ${DATA_PATH}/minio
+  immudb_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/immudb
+  keycloak_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/keycloak
