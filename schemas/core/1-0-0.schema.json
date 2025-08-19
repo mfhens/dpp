@@ -1,0 +1,97 @@
+{
+  "$id": "https://example.org/dpp/schemas/core/1-0-0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DPP Core Envelope",
+  "type": "object",
+  "required": ["id", "schemaVersion", "dppUrl", "product", "provenance"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uri",
+      "description": "Globally unique, resolvable identifier (e.g., web-enabled ISO/IEC 15459 or IEC 61406 link)."
+    },
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "dppUrl": { "type": "string", "format": "uri" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+
+    "product": {
+      "type": "object",
+      "required": ["category"],
+      "properties": {
+        "gtin": { "type": "string" },
+        "model": { "type": "string" },
+        "batchOrLot": { "type": "string" },
+        "serialNumber": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "provenance": {
+      "type": "object",
+      "required": ["operatorId"],
+      "properties": {
+        "operatorId": { "type": "string", "description": "LEI preferred where available" },
+        "facilityId": { "type": "string", "description": "GLN where available" },
+        "countryOfOrigin": { "type": "string" },
+        "manufactureDate": { "type": "string", "format": "date" }
+      },
+      "additionalProperties": false
+    },
+
+    "compliance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scheme", "reference"],
+        "properties": {
+          "scheme": { "type": "string" },
+          "reference": { "type": "string" },
+          "validFrom": { "type": "string", "format": "date" },
+          "validTo": { "type": "string", "format": "date" }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "url"],
+        "properties": {
+          "type": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "hash": { "type": "string" },
+          "mime": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "profiles": {
+      "type": "object",
+      "description": "Map of product-group profiles by namespace.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "_profile": {
+            "type": "object",
+            "required": ["namespace", "version"],
+            "properties": {
+              "namespace": { "type": "string" },
+              "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -8,6 +8,9 @@ from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, Request, Header
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from pathlib import Path
+import json
+from jsonschema import Draft202012Validator
 
 # Auth and service utilities (your existing modules)
 from .auth import oidc_oauth2
@@ -25,6 +28,12 @@ from .models import (
 )
 
 app = FastAPI(title="DPP API", version="0.2.0")
+
+# Load canonical schema for payload validation
+SCHEMA_PATH = Path(__file__).resolve().parents[2] / "schemas" / "core" / "1-0-0.schema.json"
+with open(SCHEMA_PATH) as f:
+    CORE_SCHEMA = json.load(f)
+SCHEMA_VALIDATOR = Draft202012Validator(CORE_SCHEMA)
 
 
 # -----------------------------
@@ -80,6 +89,15 @@ def _parse_iso8601(value: str) -> dt.datetime:
     return dt_obj.astimezone(dt.timezone.utc)
 
 
+def _validate_payload(payload: dict) -> None:
+    """Validate DPP payload against canonical schema."""
+    errors = sorted(SCHEMA_VALIDATOR.iter_errors(payload), key=lambda e: e.path)
+    if errors:
+        err = errors[0]
+        loc = " -> ".join(str(x) for x in err.path)
+        raise HTTPException(status_code=400, detail=f"Schema validation error at {loc}: {err.message}")
+
+
 # -----------------------------
 # Endpoints
 # -----------------------------
@@ -89,6 +107,7 @@ def create_dpp(
     token=Depends(oidc_oauth2),
     db: Session = Depends(get_session),
 ):
+    _validate_payload(cmd.payload)
     # Normalize and mint identifiers
     pid = normalize_id(cmd.product_id)
     dl_uri = generate_dl(pid, cmd.model, cmd.batch)
@@ -194,6 +213,7 @@ def create_dpp_version(
         valid_from = _parse_iso8601(cmd.valid_from)
 
     # Insert new version (append-only)
+    _validate_payload(cmd.payload)
     v = DppVersion(
         dpp_id=dpp_id,
         version=next_ver,
