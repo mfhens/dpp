@@ -92,9 +92,15 @@ class Dpp(Base):
 
     dpp_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     product_id: Mapped[str] = mapped_column(String(255), index=True)
-    digital_link: Mapped[str] = mapped_column(String(1024), unique=True, index=True)
+    dpp_url: Mapped[str] = mapped_column(String(1024), unique=True, index=True)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("NOW()"), index=True
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("NOW()"),
+        onupdate=text("NOW()"),
+        index=True,
     )
 
     # versions relationship; delete-orphan to keep referential integrity clean

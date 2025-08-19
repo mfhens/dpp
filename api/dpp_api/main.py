@@ -116,19 +116,21 @@ def create_dpp(
     dpp = Dpp(
         dpp_id=str(uuid.uuid4()),
         product_id=pid,
-        digital_link=dl_uri,
+        dpp_url=dl_uri,
         # created_at is DB server_default NOW(); omit to let DB fill it
     )
     db.add(dpp)
     db.flush()
 
     # First version (append-only)
+    ts = _utcnow()
     v = DppVersion(
         dpp_id=dpp.dpp_id,
         version=1,
-        valid_from=_utcnow(),
+        valid_from=ts,
         payload=cmd.payload,
     )
+    dpp.updated_at = ts
     db.add(v)
     db.commit()
 
@@ -138,7 +140,7 @@ def create_dpp(
     except Exception:
         pass
 
-    return {"dpp_id": dpp.dpp_id, "digital_link": dl_uri, "version": 1}
+    return {"dpp_id": dpp.dpp_id, "dpp_url": dl_uri, "version": 1}
 
 
 @app.get("/dpp/{dpp_id}", response_model=dict)
@@ -220,6 +222,7 @@ def create_dpp_version(
         valid_from=valid_from,
         payload=cmd.payload,
     )
+    dpp.updated_at = valid_from
     db.add(v)
     db.commit()
 
