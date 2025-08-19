@@ -229,7 +229,7 @@ if __name__ == "__main__":
             version=1,
             payload={
                 "@context": "https://example.org/contexts/dpp.jsonld",
-                "@id": d.digital_link,
+                "@id": d.dpp_url,
                 "modelNumber": "SANDVIK-X100",
                 "batch": "B-2025-08-14",
                 "manufacturer": {"name": "Sandvik", "lei": "5493001KJTIIGC8Y1R12"},

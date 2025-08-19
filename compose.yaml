@@ -8,6 +8,7 @@ services:
     ports: ["${POSTGRES_PORT:-5432}:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./seed/postgres:/docker-entrypoint-initdb.d:ro
     secrets:
       - postgres_user
       - postgres_password
