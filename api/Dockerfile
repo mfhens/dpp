@@ -3,7 +3,7 @@ FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    UV_CACHE_DIR=/tmp/uv-cache
+    UV_CACHE_DIR=/app/.uv-cache
 
 WORKDIR /app
 
@@ -15,14 +15,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv, the project's package manager
 RUN pip install uv
 
-# Copy dependency files
-COPY pyproject.toml uv.lock* ./
+# Create non-root user and group
+RUN groupadd -r appuser && useradd -r -g appuser -u 1001 appuser
+
+# Create and set permissions for app directory and cache
+RUN mkdir -p /app/.uv-cache && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user for dependency installation
+USER appuser
+
+# Copy dependency files (as appuser)
+COPY --chown=appuser:appuser pyproject.toml uv.lock* ./
 
 # Install all dependencies including dev dependencies
 RUN uv sync --frozen
 
-# Copy application code
-COPY . /app
+# Copy application code (as appuser)
+COPY --chown=appuser:appuser . /app
 
 EXPOSE 8000
 
