@@ -1,4 +1,3 @@
-# api/Dockerfile.dev
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -7,34 +6,28 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install system dependencies including dev tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates git build-essential \
-  && rm -rf /var/lib/apt/lists/*
+    curl ca-certificates git build-essential tini \
+ && rm -rf /var/lib/apt/lists/*
 
-# Install uv, the project's package manager
-RUN pip install uv
+RUN pip install --no-cache-dir uv
 
-# Create non-root user and group
-RUN groupadd -r appuser && useradd -r -g appuser -u 1001 appuser
+# Copy dependency files from API folder (context is repo root now)
+COPY api/pyproject.toml api/uv.lock* /app/
 
-# Create and set permissions for app directory and cache
-RUN mkdir -p /app/.uv-cache && \
-    chown -R appuser:appuser /app
+RUN mkdir -p /app/.uv-cache
 
-# Switch to non-root user for dependency installation
-USER appuser
-
-# Copy dependency files (as appuser)
-COPY --chown=appuser:appuser pyproject.toml uv.lock* ./
-
-# Install all dependencies including dev dependencies
+# Install all deps (dev included) into /app/.venv
 RUN uv sync --frozen
 
-# Copy application code (as appuser)
-COPY --chown=appuser:appuser . /app
+# Copy API source and schemas
+COPY api/dpp_api /app/dpp_api
+COPY api/main.py /app/main.py
+COPY schemas /app/schemas
+
+# Run as root in dev so it can read /run/secrets/*
+USER root
 
 EXPOSE 8000
-
-# Use uv run with reload for development
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["uv", "run", "uvicorn", "dpp_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

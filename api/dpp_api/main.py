@@ -30,8 +30,8 @@ from .models import (
 app = FastAPI(title="DPP API", version="0.2.0")
 
 # Load canonical schema for payload validation
-SCHEMA_PATH = Path(__file__).resolve().parents[2] / "schemas" / "core" / "1-0-0.schema.json"
-with open(SCHEMA_PATH) as f:
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "core" / "1-0-0.schema.json"
+with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
     CORE_SCHEMA = json.load(f)
 SCHEMA_VALIDATOR = Draft202012Validator(CORE_SCHEMA)
 

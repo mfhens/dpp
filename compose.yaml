@@ -67,17 +67,13 @@ services:
       - backend
 
   keycloak:
-    image: quay.io/keycloak/keycloak:latest
-    command: start-dev --import-realm
+    build: ./keycloak
     environment:
-      KEYCLOAK_ADMIN_FILE: /run/secrets/keycloak_admin_user
-      KEYCLOAK_ADMIN_PASSWORD_FILE: /run/secrets/keycloak_admin_password
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-dpp}
-      KC_DB_USERNAME_FILE: /run/secrets/postgres_user
-      KC_DB_PASSWORD_FILE: /run/secrets/postgres_password
+      # optional: metrics/health in dev
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
     volumes:
-      - ./seed/keycloak-realm-export.json:/opt/keycloak/data/import/realm.json
+      - ./seed/keycloak-realm-export.json:/opt/keycloak/data/import/realm.json:ro
       - keycloak_data:/opt/keycloak/data
     ports: ["${KEYCLOAK_PORT:-8080}:8080"]
     secrets:
@@ -89,7 +85,7 @@ services:
       postgres:
         condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master/.well-known/openid-configuration"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/realms/master/.well-known/openid-configuration"]
       interval: 5s
       retries: 30
     networks:
@@ -106,9 +102,12 @@ services:
       - backend
 
   api:
-    build: ./api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     environment:
-      DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_URL: postgresql+psycopg://dpp_sx2ZMqdA:8dpvC2ubuYsbcuAU91T0h8kRwRrMZCEtZ0mAfk88@postgres:5432/dpp
+      # DATABASE_URL_FILE: /run/secrets/database_url
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY_FILE: /run/secrets/minio_root_user
       MINIO_SECRET_KEY_FILE: /run/secrets/minio_root_password
@@ -140,7 +139,6 @@ services:
       opa:
         condition: service_started
     ports: ["${API_PORT:-8000}:8000"]
-    user: "1001:1001"  # Non-root user
     networks:
       - backend
       - frontend

@@ -1,10 +1,11 @@
 # models.py
 # SQLAlchemy 2.x models for a minimal DPP system: Dpp (header) + DppVersion (append-only versions)
-# Works with PostgreSQL (preferred) and falls back to SQLite for local ad-hoc runs.
+# Works best with PostgreSQL and can fall back to SQLite for local ad-hoc runs.
 
 from __future__ import annotations
 
 import os
+import time
 import datetime as dt
 from typing import Iterator, List, Optional
 
@@ -27,6 +28,7 @@ from sqlalchemy.orm import (
     sessionmaker,
     Session,
 )
+from sqlalchemy.exc import OperationalError
 
 # Prefer PostgreSQL JSONB when available; otherwise use generic JSON (SQLite fallback)
 try:
@@ -39,14 +41,40 @@ except Exception:  # pragma: no cover
 # Engine & Session
 # --------------------------------------------------------------------------------------
 
-DEFAULT_DB_URL = "postgresql+psycopg://dpp:dpp@localhost:5432/dpp"
-DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB_URL)
+def _read_env_or_file(var: str) -> Optional[str]:
+    """
+    Prefer VAR_FILE (e.g., DATABASE_URL_FILE from Docker secrets); else use VAR.
+    Trims trailing whitespace/newlines (common for Docker secrets).
+    """
+    file_var = f"{var}_FILE"
+    file_path = os.getenv(file_var)
+    if file_path:
+        with open(file_path, "r") as f:
+            return f.read().strip()
+    val = os.getenv(var)
+    return val.strip() if val else None
 
-# echo can be toggled with SQL_ECHO=1 for debugging
-SQL_ECHO = os.getenv("SQL_ECHO", "0") in ("1", "true", "TRUE", "yes")
 
-engine = create_engine(DATABASE_URL, echo=SQL_ECHO, future=True)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False, class_=Session)
+def _resolve_db_url() -> str:
+    """
+    Resolve the database URL in a container-safe way.
+    Priority: DATABASE_URL_FILE -> DATABASE_URL -> sane default.
+    The fallback is SQLite for local ad-hoc runs (no localhost-in-container footguns).
+    """
+    url = _read_env_or_file("DATABASE_URL")
+    if url:
+        return url
+
+    # Fallbacks:
+    # - If running in Docker and you *expect* Postgres, set DATABASE_URL_FILE/ENV explicitly.
+    # - For ad-hoc local runs, SQLite file DB keeps it simple without requiring a service.
+    return "sqlite+pysqlite:///./dpp.db"
+
+
+SQL_ECHO = os.getenv("SQL_ECHO", "0").lower() in {"1", "true", "yes"}
+
+ENGINE = create_engine(_resolve_db_url(), echo=SQL_ECHO, pool_pre_ping=True, future=True)
+SessionLocal = sessionmaker(bind=ENGINE, autoflush=False, autocommit=False, expire_on_commit=False, class_=Session)
 
 
 def get_session() -> Iterator[Session]:
@@ -65,8 +93,18 @@ def get_session() -> Iterator[Session]:
 def init_db(create_views: bool = True) -> None:
     """
     Create tables and optional helper view. Safe to call multiple times.
+    Includes a short readiness loop so startup doesn't race the DB container.
     """
-    Base.metadata.create_all(engine)
+    # Light readiness probe (useful when Compose says "started" but not yet accepting)
+    for i in range(10):
+        try:
+            with ENGINE.connect() as conn:
+                conn.exec_driver_sql("SELECT 1")
+            break
+        except OperationalError:
+            time.sleep(0.5 + 0.5 * i)
+
+    Base.metadata.create_all(ENGINE)
     if create_views:
         _ensure_views()
 
@@ -164,9 +202,9 @@ def _ensure_views() -> None:
     Create helper view for "latest version per DPP".
     Skips on non-Postgres engines.
     """
-    if not engine.dialect.name.startswith("postgres"):
+    if not ENGINE.dialect.name.startswith("postgres"):
         return
-    with engine.begin() as conn:
+    with ENGINE.begin() as conn:
         conn.exec_driver_sql(LATEST_VIEW_SQL)
 
 
@@ -219,7 +257,7 @@ if __name__ == "__main__":
         d = Dpp(
             dpp_id=new_id,
             product_id="urn:example:product:12345",
-            digital_link=f"https://example.org/dpp/{new_id}",
+            dpp_url=f"https://example.org/dpp/{new_id}",
         )
         s.add(d)
         s.flush()
