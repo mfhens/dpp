@@ -1,6 +1,6 @@
 -- 001_schema.sql
 CREATE TABLE IF NOT EXISTS dpp (
-  dpp_id      VARCHAR(64)  PRIMARY KEY,
+  dpp_id      VARCHAR(512)  PRIMARY KEY,
   product_id  VARCHAR(255),
   dpp_url     VARCHAR(1024) UNIQUE,
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS dpp (
 CREATE INDEX IF NOT EXISTS ix_dpp_product_id_created ON dpp (product_id, created_at);
 
 CREATE TABLE IF NOT EXISTS dpp_version (
-  dpp_id     VARCHAR(64) REFERENCES dpp(dpp_id) ON DELETE CASCADE,
+  dpp_id     VARCHAR(512) REFERENCES dpp(dpp_id) ON DELETE CASCADE,
   version    INTEGER     NOT NULL,
   valid_from TIMESTAMPTZ NOT NULL DEFAULT now(),
   payload    JSONB       NOT NULL,

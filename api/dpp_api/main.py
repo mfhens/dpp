@@ -4,6 +4,7 @@ from __future__ import annotations
 import uuid
 import datetime as dt
 from typing import Optional
+import os
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Header
 from pydantic import BaseModel, Field
@@ -26,6 +27,11 @@ from .models import (
     DppVersion,
     get_latest_dpp_version,
 )
+
+import hashlib
+import base64
+
+MAX_DB_ID_LEN = 512  # current DB schema
 
 app = FastAPI(title="DPP API", version="0.2.0")
 
@@ -108,39 +114,62 @@ def create_dpp(
     db: Session = Depends(get_session),
 ):
     _validate_payload(cmd.payload)
-    # Normalize and mint identifiers
-    pid = normalize_id(cmd.product_id)
-    dl_uri = generate_dl(pid, cmd.model, cmd.batch)
 
-    # Create DPP header
-    dpp = Dpp(
-        dpp_id=str(uuid.uuid4()),
-        product_id=pid,
-        dpp_url=dl_uri,
-        # created_at is DB server_default NOW(); omit to let DB fill it
-    )
+    # 1) derive the canonical dpp_id from payload.id
+    dpp_id = _extract_dpp_id(cmd.payload)
+
+    # 2) figure out a sensible dpp_url
+    # prefer payload.dppUrl; else build from API base (works for scanning)
+    dpp_url = cmd.payload.get("dppUrl")
+    if not dpp_url:
+        base = os.env.get("PUBLIC_PORTAL_BASE", "http://localhost:3000")
+        dpp_url = f"{base}/dpp/{dpp_id}"
+
+    # 3) if header exists -> append new version
+    header = db.query(Dpp).filter(Dpp.dpp_id == dpp_id).first()
+    ts = _utcnow()
+
+    if header:
+        latest = get_latest_dpp_version(db, dpp_id)
+        next_ver = (latest.version if latest else 0) + 1
+
+        v = DppVersion(
+            dpp_id=dpp_id,
+            version=next_ver,
+            valid_from=ts,
+            payload=cmd.payload,
+        )
+        header.updated_at = ts
+        db.add(v)
+        db.commit()
+
+        try:
+            audit_append("dpp.version.create", {"dpp_id": dpp_id, "version": next_ver, "actor": getattr(token, "sub", None)})
+        except Exception:
+            pass
+
+        return {"dpp_id": dpp_id, "dpp_url": header.dpp_url, "version": next_ver}
+
+    # 4) else create header + v1
+    # keep your request fields for product association for now
+    pid = normalize_id(cmd.product_id)
+    dl_uri = dpp_url  # align header URL with what we expose
+    dpp = Dpp(dpp_id=dpp_id, product_id=pid, dpp_url=dl_uri)
     db.add(dpp)
     db.flush()
 
-    # First version (append-only)
-    ts = _utcnow()
-    v = DppVersion(
-        dpp_id=dpp.dpp_id,
-        version=1,
-        valid_from=ts,
-        payload=cmd.payload,
-    )
+    v = DppVersion(dpp_id=dpp_id, version=1, valid_from=ts, payload=cmd.payload)
     dpp.updated_at = ts
     db.add(v)
     db.commit()
 
-    # Audit
     try:
-        audit_append("dpp.create", {"dpp_id": dpp.dpp_id, "actor": getattr(token, "sub", None)})
+        audit_append("dpp.create", {"dpp_id": dpp_id, "actor": getattr(token, "sub", None)})
     except Exception:
         pass
 
-    return {"dpp_id": dpp.dpp_id, "dpp_url": dl_uri, "version": 1}
+    return {"dpp_id": dpp_id, "dpp_url": dl_uri, "version": 1}
+
 
 
 @app.get("/dpp/{dpp_id}", response_model=dict)
@@ -261,3 +290,17 @@ async def upload_attachment(
         pass
 
     return {"ok": True, "url": url}
+
+def _extract_dpp_id(payload: dict) -> str:
+    dpp_id = (payload or {}).get("id")
+    if not dpp_id or not isinstance(dpp_id, str):
+        raise HTTPException(status_code=400, detail="Payload.id is required and must be a string")
+
+    # normalize if you have rules (DID/URL normalization, lowercase host, etc.)
+    # here we reuse your existing normalize_id if it copes with URIs
+    try:
+        norm = normalize_id(dpp_id)
+    except Exception:
+        norm = dpp_id  # be permissive; schema already validated
+
+    return norm

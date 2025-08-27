@@ -1,20 +1,41 @@
 {
-  "$id": "https://example.org/dpp/schemas/core/1-0-0.schema.json",
+  "$id": "https://example.org/dpp/schemas/core/1-1-0.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "DPP Core Envelope",
+  "$comment": "Archiving & persistence are handled by platform policy (DB/object store, backups, retention/WORM) aligned with prEN 18221; the EU DPP registry underpins minimum preservation/permanence of identifiers (see prEN 18219).",
   "type": "object",
-  "required": ["id", "schemaVersion", "dppUrl", "product", "provenance"],
+  "required": ["id", "idScheme", "idGranularity", "schemaVersion", "dppUrl", "product", "provenance"],
   "properties": {
     "id": {
       "type": "string",
       "format": "uri",
-      "description": "Globally unique, resolvable identifier (e.g., web-enabled ISO/IEC 15459 or IEC 61406 link)."
+      "description": "Globally unique, web-resolvable identifier constructed per prEN 18219 (e.g., ISO/IEC 18975 structured path or query using ISO/IEC 15459 AIs/DIs; IEC 61406 Identification Link URL; W3C DID; DOI URL)."
     },
-    "schemaVersion": {
+    "idScheme": {
       "type": "string",
-      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+      "description": "Declares which prEN 18219-compliant scheme is used to construct 'id'.",
+      "enum": [
+        "WEB_STRUCTURED_PATH_AI_15459_18975",
+        "WEB_QUERY_DI_15459_18975",
+        "IEC_61406_IL",
+        "DID_W3C",
+        "RFID_SYNTAX_15434_15961_17360",
+        "DOI_ISO_26324"
+      ]
     },
+    "idGranularity": {
+      "type": "string",
+      "description": "Granularity of the unique product identifier as required by prEN 18219.",
+      "enum": ["model", "batch", "item"]
+    },
+    "schemaVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
     "dppUrl": { "type": "string", "format": "uri" },
+
+    "registryId": {
+      "type": "string",
+      "description": "Optional registry-issued handle for the passport record (e.g., upon submission to a DPP registry)."
+    },
+
     "createdAt": { "type": "string", "format": "date-time" },
     "updatedAt": { "type": "string", "format": "date-time" },
 
@@ -36,8 +57,14 @@
       "type": "object",
       "required": ["operatorId"],
       "properties": {
-        "operatorId": { "type": "string", "description": "LEI preferred where available" },
-        "facilityId": { "type": "string", "description": "GLN where available" },
+        "operatorId": {
+          "type": "string",
+          "description": "Unique economic-operator identifier (LEI preferred where available)."
+        },
+        "facilityId": {
+          "type": "string",
+          "description": "Unique facility identifier (e.g., GLN) where available."
+        },
         "countryOfOrigin": { "type": "string" },
         "manufactureDate": { "type": "string", "format": "date" }
       },
@@ -93,5 +120,27 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "idScheme": { "const": "DID_W3C" } }, "required": ["idScheme"] },
+      "then": { "properties": { "id": { "pattern": "^did:[a-z0-9]+:.+" } } }
+    },
+    {
+      "if": { "properties": { "idScheme": { "const": "DOI_ISO_26324" } }, "required": ["idScheme"] },
+      "then": { "properties": { "id": { "pattern": "^https?://(dx\\.)?doi\\.org/.+" } } }
+    },
+    {
+      "if": { "properties": { "idScheme": { "const": "WEB_STRUCTURED_PATH_AI_15459_18975" } }, "required": ["idScheme"] },
+      "then": { "properties": { "id": { "pattern": "/(01|8006)/[0-9]{8,14}(/10/[^/?#]+)?(/21/[^/?#]+)?($|\\?|#)" } } }
+    },
+    {
+      "if": { "properties": { "idScheme": { "const": "WEB_QUERY_DI_15459_18975" } }, "required": ["idScheme"] },
+      "then": { "properties": { "id": { "pattern": "^https?://[^\\s?#]+\\?(.+)$" } } }
+    },
+    {
+      "if": { "properties": { "idScheme": { "const": "IEC_61406_IL" } }, "required": ["idScheme"] },
+      "then": { "properties": { "id": { "pattern": "^https?://[^\\s]+/.+" } } }
+    }
+  ],
   "additionalProperties": false
 }

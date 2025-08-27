@@ -9,6 +9,13 @@ export KC_DB_PASSWORD="$(tr -d '\r\n' < /run/secrets/postgres_password)"
 export KC_BOOTSTRAP_ADMIN_USERNAME="$(tr -d '\r\n' < /run/secrets/keycloak_admin_user)"
 export KC_BOOTSTRAP_ADMIN_PASSWORD="$(tr -d '\r\n' < /run/secrets/keycloak_admin_password)"
 
+# Wait for database
+echo "Waiting for database connection..."
+until nc -z postgres 5432; do
+  echo "Database not ready, waiting..."
+  sleep 2
+done
+
 # Nice to have in dev
 export KC_HEALTH_ENABLED=true
 export KC_METRICS_ENABLED=true

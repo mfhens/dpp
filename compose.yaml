@@ -16,6 +16,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U $(cat /run/secrets/postgres_user) -d ${POSTGRES_DB:-dpp}"]
       interval: 5s
       retries: 20
+      start_period: 10s
     networks:
       - backend
 
@@ -44,7 +45,7 @@ services:
     secrets:
       - immudb_admin_password
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/readyz || exit 1"]
+      test: ["CMD-SHELL", "nc -z localhost 3322 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -69,9 +70,19 @@ services:
   keycloak:
     build: ./keycloak
     environment:
-      # optional: metrics/health in dev
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
+      # Add database configuration
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: ${POSTGRES_DB:-dpp}
+      KC_DB_USERNAME_FILE: /run/secrets/postgres_user
+      KC_DB_PASSWORD_FILE: /run/secrets/postgres_password
+      # Production settings
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HTTP_ENABLED: true
     volumes:
       - ./seed/keycloak-realm-export.json:/opt/keycloak/data/import/realm.json:ro
       - keycloak_data:/opt/keycloak/data
@@ -83,11 +94,14 @@ services:
       - postgres_password
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy  # Changed from service_started
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/realms/master/.well-known/openid-configuration"]
-      interval: 5s
-      retries: 30
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    command: ["start", "--import-realm"]
     networks:
       - backend
       - frontend
@@ -96,7 +110,11 @@ services:
     build: ./opa
     ports: ["${OPA_PORT:-8181}:8181"]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8181/health"]
+      test: ["CMD-SHELL", "nc -z localhost 8181 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     user: "1001:1001"  # Non-root user
     networks:
       - backend
@@ -225,27 +243,8 @@ networks:
         - subnet: 172.21.0.0/16
 
 volumes:
-  pgdata:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH}/postgres
-  minio:
-    driver: local
-    driver_opts:
-      type: none  
-      o: bind
-      device: ${DATA_PATH}/minio
-  immudb_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH}/immudb
+  pgdata: {}
+  minio: {}
+  immudb_data: {}
   keycloak_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH}/keycloak

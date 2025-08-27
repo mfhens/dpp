@@ -1,17 +1,255 @@
+/* Tailwind layers */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ===============================
+   EY-inspired design tokens
+   =============================== */
 :root {
-  --bg: #0b1220;
-  --card: #0f172a;
+  /* Colors */
+  --ey-black: #111111;
+  --ey-charcoal: #1f1f1f;
+  --ey-text: #1a1a1a;
+  --ey-muted: #6b7280;        /* neutral-500 */
+  --ey-border: #e5e7eb;       /* neutral-200 */
+  --ey-surface: #ffffff;
+  --ey-surface-2: #f7f7f7;
+  --ey-yellow: #ffd200;       /* EY Yellow */
+  --ey-yellow-strong: #ffbf00;
+
+  /* Feedback */
+  --ey-green: #059669;        /* emerald-600 */
+  --ey-amber: #d97706;        /* amber-600 */
+  --ey-red: #b91c1c;          /* red-700 */
+
+  /* Radius & shadows */
+  --ey-radius: 16px;
+  --ey-shadow-1: 0 1px 2px rgba(0,0,0,.06);
+  --ey-shadow-2: 0 10px 25px rgba(0,0,0,.08);
+
+  /* Typography scale */
+  --ey-font-system: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --ey-leading: 1.55;
 }
 
-html, body {
-  height: 100%;
+/* ===============================
+   Base + typography
+   =============================== */
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    margin: 0;
+    background: var(--ey-surface);
+    color: var(--ey-text);
+    font-family: var(--ey-font-system);
+    line-height: var(--ey-leading);
+  }
+
+  h1, h2, h3 {
+    letter-spacing: -0.01em;
+    color: var(--ey-black);
+  }
+  h1 { font-weight: 700; }
+  h2, h3 { font-weight: 600; }
+
+  a {
+    color: var(--ey-black);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1.25px;
+  }
+  a:hover {
+    color: var(--ey-yellow-strong);
+    text-decoration-color: var(--ey-yellow-strong);
+  }
+
+  /* Focus ring: high-contrast EY yellow */
+  :focus-visible {
+    outline: 3px solid var(--ey-yellow);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
 }
 
-body {
-  background: var(--bg);
-  color: white;
+/* ===============================
+   Layout helpers
+   =============================== */
+@layer components {
+  .ey-container {
+    @apply mx-auto w-full max-w-6xl px-4 md:px-6;
+  }
+  .ey-section {
+    @apply my-6 md:my-8;
+  }
+  .ey-card {
+    background: var(--ey-surface);
+    border: 1px solid var(--ey-border);
+    border-radius: var(--ey-radius);
+    box-shadow: var(--ey-shadow-1);
+  }
+  .ey-card--elevated { box-shadow: var(--ey-shadow-2); }
+
+  /* Heading stripe (EY yellow bar at left) */
+  .ey-stripe {
+    position: relative;
+    padding-left: 14px;
+  }
+  .ey-stripe::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0.2em; bottom: 0.2em;
+    width: 6px;
+    background: var(--ey-yellow);
+    border-radius: 3px;
+  }
+
+  /* Pill */
+  .ey-pill {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs;
+    background: #f5f5f5;
+    border: 1px solid var(--ey-border);
+    color: #222;
+    gap: 6px;
+  }
+  .ey-pill--yellow {
+    background: color-mix(in srgb, var(--ey-yellow) 18%, white);
+    border-color: color-mix(in srgb, var(--ey-yellow) 50%, white);
+    color: var(--ey-black);
+  }
+
+  /* Button styles */
+  .ey-btn {
+    @apply inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors;
+    border: 1px solid var(--ey-black);
+    color: var(--ey-black);
+    background: var(--ey-surface);
+  }
+  .ey-btn:hover { background: var(--ey-surface-2); }
+  .ey-btn--primary {
+    border-color: var(--ey-yellow);
+    background: var(--ey-yellow);
+    color: var(--ey-black);
+  }
+  .ey-btn--primary:hover { background: var(--ey-yellow-strong); }
+
+  /* Key-value grid */
+  .ey-kv {
+    @apply grid grid-cols-3 gap-2 py-1;
+  }
+  .ey-kv__label {
+    @apply text-sm text-neutral-500;
+  }
+  .ey-kv__value {
+    @apply col-span-2 text-sm break-words;
+  }
+
+  /* Link chip used for documents */
+  .ey-chip {
+    @apply inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs;
+    border-color: var(--ey-border);
+    background: var(--ey-surface);
+  }
+}
+
+/* ===============================
+   Tables
+   =============================== */
+@layer components {
+  .ey-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border: 1px solid var(--ey-border);
+    border-radius: 12px;
+  }
+  .ey-table thead th {
+    text-align: left;
+    background: var(--ey-surface-2);
+    color: var(--ey-black);
+    font-weight: 600;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--ey-border);
+  }
+  .ey-table tbody td {
+    padding: 10px 12px;
+    border-top: 1px solid var(--ey-border);
+  }
+  .ey-table tbody tr:hover {
+    background: #fafafa;
+  }
+}
+
+/* ===============================
+   Code / pre blocks
+   =============================== */
+@layer components {
+  pre, code, kbd, samp {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  pre {
+    background: #0a0a0a;
+    color: #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 14px;
+    overflow: auto;
+    border: 1px solid #1f2937;
+  }
+}
+
+/* ===============================
+   Print styles (for DPP)
+   =============================== */
+@media print {
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  a { color: #000; text-decoration: none; }
+  .ey-btn, .ey-chip { display: none !important; } /* hide chrome UI */
+  .ey-container { max-width: 100% !important; padding: 0 !important; }
+  .ey-card { box-shadow: none !important; border-color: #ddd; }
+}
+
+/* EY input */
+@layer components {
+  .ey-input {
+    appearance: none;
+    width: 100%;
+    border: 1px solid var(--ey-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--ey-surface);
+    color: var(--ey-text);
+    transition: border-color .15s ease;
+  }
+  .ey-input::placeholder { color: var(--ey-muted); }
+  .ey-input:focus { outline: none; border-color: var(--ey-black); }
+}
+
+@layer components {
+  /* Metric tiles inside stakeholder cards */
+  .ey-metric {
+    @apply rounded-md border p-2 text-center;
+    min-width: 0;                 /* allow children to wrap instead of overflow */
+  }
+  .ey-metric__value {
+    @apply font-bold;
+    font-size: 0.95rem;           /* slightly smaller than text-base */
+    line-height: 1.1;
+    color: #4338ca;               /* indigo-700 */
+  }
+  .ey-metric__label {
+    font-size: 11px;
+    line-height: 1.1;
+    color: var(--ey-muted);
+    word-break: break-word;       /* break long words if needed */
+    overflow-wrap: anywhere;      /* force wrap for narrow tiles */
+    white-space: normal;          /* ensure wrapping allowed */
+  }
 }

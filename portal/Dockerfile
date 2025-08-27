@@ -1,8 +1,10 @@
 # portal/Dockerfile
+
+# ---- deps ----
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci || npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 FROM node:20-alpine AS build
 WORKDIR /app
