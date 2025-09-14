@@ -5,11 +5,9 @@
 LAYOUT_TOP_DOWN()
 TITLE "Sandvik DPP Platform — C2: Containers (Internal Only)"
 
-System_Boundary(secops, "Security & Ops") {
   System_Ext(idp, "Auth Server", "OAuth2 / OIDC", "Tokens; federation")
   System_Ext(vault, "KMS / Secrets", "HSM / Vault", "Keys & certificates; signing")
   System_Ext(obs, "Observability", "Logs / Traces / Metrics", "End-to-end monitoring")
-}
 
 System_Boundary(sandvik, "Sandvik DPP Platform") {
   ' --- Row 1: Core services ---
