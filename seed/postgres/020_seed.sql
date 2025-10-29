@@ -1,14 +1,19 @@
+-- sqlfluff:disable
 -- 020_seed.sql
 
 CREATE TEMP TABLE _seed(doc JSONB);
 
 -- Client-side copy (psql meta-command). Works without superuser.
-\copy _seed(doc) FROM '/docker-entrypoint-initdb.d/testdata.ndjson'
+-- Using Lego Duck sample DPPs for demonstration
+\copy _seed(doc) FROM '/docker-entrypoint-initdb.d/lego-duck-sample-dpps.ndjson'
 
 INSERT INTO dpp (dpp_id, product_id, dpp_url)
 SELECT
   doc->>'id' AS dpp_id,
   COALESCE(
+    doc #>> '{product,model}',
+    doc #>> '{product,serialNumber}',
+    doc #>> '{product,batchOrLot}',
     doc #>> '{attributes,model}',
     doc #>> '{attributes,modelNumber}',
     doc->>'product_id',
@@ -24,3 +29,4 @@ FROM _seed
 ON CONFLICT (dpp_id, version) DO NOTHING;
 
 DROP TABLE _seed;
+

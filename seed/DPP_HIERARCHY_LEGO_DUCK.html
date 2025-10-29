@@ -1,0 +1,587 @@
+<!DOCTYPE html><html><head>
+      <title>DPP_HIERARCHY_LEGO_DUCK</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      
+      <link rel="stylesheet" href="file:///c:\Users\AJ849XF\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.8.19\crossnote\dependencies\katex\katex.min.css">
+      
+      
+      
+      
+      
+      <style>
+      code[class*=language-],pre[class*=language-]{color:#333;background:0 0;font-family:Consolas,"Liberation Mono",Menlo,Courier,monospace;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;word-wrap:normal;line-height:1.4;-moz-tab-size:8;-o-tab-size:8;tab-size:8;-webkit-hyphens:none;-moz-hyphens:none;-ms-hyphens:none;hyphens:none}pre[class*=language-]{padding:.8em;overflow:auto;border-radius:3px;background:#f5f5f5}:not(pre)>code[class*=language-]{padding:.1em;border-radius:.3em;white-space:normal;background:#f5f5f5}.token.blockquote,.token.comment{color:#969896}.token.cdata{color:#183691}.token.doctype,.token.macro.property,.token.punctuation,.token.variable{color:#333}.token.builtin,.token.important,.token.keyword,.token.operator,.token.rule{color:#a71d5d}.token.attr-value,.token.regex,.token.string,.token.url{color:#183691}.token.atrule,.token.boolean,.token.code,.token.command,.token.constant,.token.entity,.token.number,.token.property,.token.symbol{color:#0086b3}.token.prolog,.token.selector,.token.tag{color:#63a35c}.token.attr-name,.token.class,.token.class-name,.token.function,.token.id,.token.namespace,.token.pseudo-class,.token.pseudo-element,.token.url-reference .token.variable{color:#795da3}.token.entity{cursor:help}.token.title,.token.title .token.punctuation{font-weight:700;color:#1d3e81}.token.list{color:#ed6a43}.token.inserted{background-color:#eaffea;color:#55a532}.token.deleted{background-color:#ffecec;color:#bd2c00}.token.bold{font-weight:700}.token.italic{font-style:italic}.language-json .token.property{color:#183691}.language-markup .token.tag .token.punctuation{color:#333}.language-css .token.function,code.language-css{color:#0086b3}.language-yaml .token.atrule{color:#63a35c}code.language-yaml{color:#183691}.language-ruby .token.function{color:#333}.language-markdown .token.url{color:#795da3}.language-makefile .token.symbol{color:#795da3}.language-makefile .token.variable{color:#183691}.language-makefile .token.builtin{color:#0086b3}.language-bash .token.keyword{color:#0086b3}pre[data-line]{position:relative;padding:1em 0 1em 3em}pre[data-line] .line-highlight-wrapper{position:absolute;top:0;left:0;background-color:transparent;display:block;width:100%}pre[data-line] .line-highlight{position:absolute;left:0;right:0;padding:inherit 0;margin-top:1em;background:hsla(24,20%,50%,.08);background:linear-gradient(to right,hsla(24,20%,50%,.1) 70%,hsla(24,20%,50%,0));pointer-events:none;line-height:inherit;white-space:pre}pre[data-line] .line-highlight:before,pre[data-line] .line-highlight[data-end]:after{content:attr(data-start);position:absolute;top:.4em;left:.6em;min-width:1em;padding:0 .5em;background-color:hsla(24,20%,50%,.4);color:#f4f1ef;font:bold 65%/1.5 sans-serif;text-align:center;vertical-align:.3em;border-radius:999px;text-shadow:none;box-shadow:0 1px #fff}pre[data-line] .line-highlight[data-end]:after{content:attr(data-end);top:auto;bottom:.4em}html body{font-family:'Helvetica Neue',Helvetica,'Segoe UI',Arial,freesans,sans-serif;font-size:16px;line-height:1.6;color:#333;background-color:#fff;overflow:initial;box-sizing:border-box;word-wrap:break-word}html body>:first-child{margin-top:0}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{line-height:1.2;margin-top:1em;margin-bottom:16px;color:#000}html body h1{font-size:2.25em;font-weight:300;padding-bottom:.3em}html body h2{font-size:1.75em;font-weight:400;padding-bottom:.3em}html body h3{font-size:1.5em;font-weight:500}html body h4{font-size:1.25em;font-weight:600}html body h5{font-size:1.1em;font-weight:600}html body h6{font-size:1em;font-weight:600}html body h1,html body h2,html body h3,html body h4,html body h5{font-weight:600}html body h5{font-size:1em}html body h6{color:#5c5c5c}html body strong{color:#000}html body del{color:#5c5c5c}html body a:not([href]){color:inherit;text-decoration:none}html body a{color:#08c;text-decoration:none}html body a:hover{color:#00a3f5;text-decoration:none}html body img{max-width:100%}html body>p{margin-top:0;margin-bottom:16px;word-wrap:break-word}html body>ol,html body>ul{margin-bottom:16px}html body ol,html body ul{padding-left:2em}html body ol.no-list,html body ul.no-list{padding:0;list-style-type:none}html body ol ol,html body ol ul,html body ul ol,html body ul ul{margin-top:0;margin-bottom:0}html body li{margin-bottom:0}html body li.task-list-item{list-style:none}html body li>p{margin-top:0;margin-bottom:0}html body .task-list-item-checkbox{margin:0 .2em .25em -1.8em;vertical-align:middle}html body .task-list-item-checkbox:hover{cursor:pointer}html body blockquote{margin:16px 0;font-size:inherit;padding:0 15px;color:#5c5c5c;background-color:#f0f0f0;border-left:4px solid #d6d6d6}html body blockquote>:first-child{margin-top:0}html body blockquote>:last-child{margin-bottom:0}html body hr{height:4px;margin:32px 0;background-color:#d6d6d6;border:0 none}html body table{margin:10px 0 15px 0;border-collapse:collapse;border-spacing:0;display:block;width:100%;overflow:auto;word-break:normal;word-break:keep-all}html body table th{font-weight:700;color:#000}html body table td,html body table th{border:1px solid #d6d6d6;padding:6px 13px}html body dl{padding:0}html body dl dt{padding:0;margin-top:16px;font-size:1em;font-style:italic;font-weight:700}html body dl dd{padding:0 16px;margin-bottom:16px}html body code{font-family:Menlo,Monaco,Consolas,'Courier New',monospace;font-size:.85em;color:#000;background-color:#f0f0f0;border-radius:3px;padding:.2em 0}html body code::after,html body code::before{letter-spacing:-.2em;content:'\00a0'}html body pre>code{padding:0;margin:0;word-break:normal;white-space:pre;background:0 0;border:0}html body .highlight{margin-bottom:16px}html body .highlight pre,html body pre{padding:1em;overflow:auto;line-height:1.45;border:#d6d6d6;border-radius:3px}html body .highlight pre{margin-bottom:0;word-break:normal}html body pre code,html body pre tt{display:inline;max-width:initial;padding:0;margin:0;overflow:initial;line-height:inherit;word-wrap:normal;background-color:transparent;border:0}html body pre code:after,html body pre code:before,html body pre tt:after,html body pre tt:before{content:normal}html body blockquote,html body dl,html body ol,html body p,html body pre,html body ul{margin-top:0;margin-bottom:16px}html body kbd{color:#000;border:1px solid #d6d6d6;border-bottom:2px solid #c7c7c7;padding:2px 4px;background-color:#f0f0f0;border-radius:3px}@media print{html body{background-color:#fff}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{color:#000;page-break-after:avoid}html body blockquote{color:#5c5c5c}html body pre{page-break-inside:avoid}html body table{display:table}html body img{display:block;max-width:100%;max-height:100%}html body code,html body pre{word-wrap:break-word;white-space:pre}}.markdown-preview{width:100%;height:100%;box-sizing:border-box}.markdown-preview ul{list-style:disc}.markdown-preview ul ul{list-style:circle}.markdown-preview ul ul ul{list-style:square}.markdown-preview ol{list-style:decimal}.markdown-preview ol ol,.markdown-preview ul ol{list-style-type:lower-roman}.markdown-preview ol ol ol,.markdown-preview ol ul ol,.markdown-preview ul ol ol,.markdown-preview ul ul ol{list-style-type:lower-alpha}.markdown-preview .newpage,.markdown-preview .pagebreak{page-break-before:always}.markdown-preview pre.line-numbers{position:relative;padding-left:3.8em;counter-reset:linenumber}.markdown-preview pre.line-numbers>code{position:relative}.markdown-preview pre.line-numbers .line-numbers-rows{position:absolute;pointer-events:none;top:1em;font-size:100%;left:0;width:3em;letter-spacing:-1px;border-right:1px solid #999;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}.markdown-preview pre.line-numbers .line-numbers-rows>span{pointer-events:none;display:block;counter-increment:linenumber}.markdown-preview pre.line-numbers .line-numbers-rows>span:before{content:counter(linenumber);color:#999;display:block;padding-right:.8em;text-align:right}.markdown-preview .mathjax-exps .MathJax_Display{text-align:center!important}.markdown-preview:not([data-for=preview]) .code-chunk .code-chunk-btn-group{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .status{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .output-div{margin-bottom:16px}.markdown-preview .md-toc{padding:0}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link div,.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}.markdown-preview .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}.scrollbar-style::-webkit-scrollbar{width:8px}.scrollbar-style::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}.scrollbar-style::-webkit-scrollbar-thumb{border-radius:5px;background-color:rgba(150,150,150,.66);border:4px solid rgba(150,150,150,.66);background-clip:content-box}html body[for=html-export]:not([data-presentation-mode]){position:relative;width:100%;height:100%;top:0;left:0;margin:0;padding:0;overflow:auto}html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{position:relative;top:0;min-height:100vh}@media screen and (min-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em calc(50% - 457px + 2em)}}@media screen and (max-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{font-size:14px!important;padding:1em}}@media print{html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{display:none}}html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{position:fixed;bottom:8px;left:8px;font-size:28px;cursor:pointer;color:inherit;z-index:99;width:32px;text-align:center;opacity:.4}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] #sidebar-toc-btn{opacity:1}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc{position:fixed;top:0;left:0;width:300px;height:100%;padding:32px 0 48px 0;font-size:14px;box-shadow:0 0 4px rgba(150,150,150,.33);box-sizing:border-box;overflow:auto;background-color:inherit}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar{width:8px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-thumb{border-radius:5px;background-color:rgba(150,150,150,.66);border:4px solid rgba(150,150,150,.66);background-clip:content-box}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc a{text-decoration:none}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc{padding:0 16px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link div,html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{left:300px;width:calc(100% - 300px);padding:2em calc(50% - 457px - 300px / 2);margin:0;box-sizing:border-box}@media screen and (max-width:1274px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{width:100%}}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .markdown-preview{left:50%;transform:translateX(-50%)}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .md-sidebar-toc{display:none}
+/* Please visit the URL below for more information: */
+/*   https://shd101wyy.github.io/markdown-preview-enhanced/#/customize-css */
+
+      </style>
+      <!-- The content below will be included at the end of the <head> element. --><script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    // your code here
+  });
+</script></head><body for="html-export">
+    
+    
+      <div class="crossnote markdown-preview  ">
+      
+<h1 id="dpp-hierarchy---lego-duck-product">DPP Hierarchy - Lego Duck Product </h1>
+<h2 id="complete-traceability-chain">Complete Traceability Chain </h2>
+<p>This document illustrates the complete Digital Product Passport hierarchy for the Lego Duck, showing how each component and raw material is linked through DPP references.</p>
+<hr>
+<h2 id="visual-hierarchy">Visual Hierarchy </h2>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>┌─────────────────────────────────────────────────────────────────┐
+│  FINISHED PRODUCT (Item-level DPP)                              │
+│  Lego Duck - LEGO-DUCK-001                                      │
+│  Serial: SN-2025-LD-001234                                      │
+│  DPP: did:web:dpp.brickquack.com:product:lego-duck:item-...    │
+│  GTIN: 04260012345838                                           │
+└─────────────┬───────────────────────────────────────────────────┘
+              │
+    ┌─────────┴──────────┬──────────────┬────────────┬─────────────┐
+    │                    │              │            │             │
+    ▼                    ▼              ▼            ▼             ▼
+┌────────┐      ┌──────────────┐  ┌─────────┐  ┌────────┐  ┌──────────┐
+│Red     │      │Yellow        │  │Duck     │  │PVC     │  │Paper     │
+│Brick   │ (6x) │Brick    (10x)│  │Eye  (2x)│  │Pack(1x)│  │Pack  (1x)│
+│RED-    │      │YELLOW-       │  │DUCK-    │  │PVC-BE- │  │PAPER-ZA- │
+│BRICK-  │      │BRICK-001     │  │EYE-001  │  │001     │  │001       │
+│001     │      │              │  │         │  │        │  │          │
+└────┬───┘      └──────┬───────┘  └────┬────┘  └───┬────┘  └────┬─────┘
+     │                 │               │           │            │
+     │ Batch DPP      │ Batch DPP     │ Batch DPP │ Batch DPP  │ Batch DPP
+     │                 │               │           │            │
+┌────┴──────┐    ┌─────┴─────┐   ┌────┴────┐     │            │
+│           │    │           │   │         │     │            │
+▼           ▼    ▼           ▼   ▼         ▼     ▼            ▼
+┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐  Direct raw
+│ABS-TH  │ │ABS-KW  │ │CB-LUX  │ │ABS-TH  │ │CB-LUX  │  materials
+│(5.0g)  │ │(5.0g)  │ │(0.5g)  │ │(4.5g)  │ │(0.3g)  │
+└────────┘ └────────┘ └────────┘ └────────┘ └────────┘
+   │          │          │          │          │
+   │          │          │          │          │
+   └──────────┴──────────┴──────────┴──────────┘
+              │
+              ▼
+    ┌─────────────────────┐
+    │  RAW MATERIALS      │
+    │  (Batch-level DPPs) │
+    └─────────────────────┘
+</code></pre><hr>
+<h2 id="dpp-records-created">DPP Records Created </h2>
+<h3 id="1-raw-material-level-batch-granularity">1. Raw Material Level (Batch Granularity) </h3>
+<table>
+<thead>
+<tr>
+<th>Material Code</th>
+<th>Description</th>
+<th>DPP ID</th>
+<th>Origin</th>
+<th>Supplier</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ABS-TH-001</strong></td>
+<td>ABS Resin from Thailand</td>
+<td><code>did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001</code></td>
+<td>Thailand</td>
+<td>PolyFormix Global (1000569)</td>
+</tr>
+<tr>
+<td><strong>ABS-KW-001</strong></td>
+<td>ABS Resin from Kuwait</td>
+<td><code>did:web:dpp.brickquack.com:raw:abs-kw:batch-2025-10-002</code></td>
+<td>Kuwait</td>
+<td>PolyFormix Global (1000569)</td>
+</tr>
+<tr>
+<td><strong>CB-LUX-001</strong></td>
+<td>Carbon Black from Luxembourg</td>
+<td><code>did:web:dpp.brickquack.com:raw:cb-lux:batch-2025-10-003</code></td>
+<td>Luxembourg</td>
+<td>PetroNovo Materials (1000570)</td>
+</tr>
+<tr>
+<td><strong>PVC-BE-001</strong></td>
+<td>PVC Packaging from Belgium</td>
+<td><code>did:web:dpp.brickquack.com:raw:pvc-be:batch-2025-10-004</code></td>
+<td>Belgium</td>
+<td>PackTech Belgium (1000571)</td>
+</tr>
+<tr>
+<td><strong>PAPER-ZA-001</strong></td>
+<td>Paper Packaging from South Africa</td>
+<td><code>did:web:dpp.brickquack.com:raw:paper-za:batch-2025-10-005</code></td>
+<td>South Africa</td>
+<td>AfriPack Solutions (1000572)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2-component-level-batch-granularity">2. Component Level (Batch Granularity) </h3>
+<table>
+<thead>
+<tr>
+<th>Component Code</th>
+<th>Description</th>
+<th>DPP ID</th>
+<th>Contains</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>RED-BRICK-001</strong></td>
+<td>Red Plate Brick (2x4 studs)</td>
+<td><code>did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001</code></td>
+<td>5.0g ABS-TH + 5.0g ABS-KW + 0.5g CB-LUX</td>
+</tr>
+<tr>
+<td><strong>YELLOW-BRICK-001</strong></td>
+<td>Yellow Plate Brick (2x3 studs)</td>
+<td><code>did:web:dpp.brickquack.com:component:yellow-brick:batch-2025-Q4-001</code></td>
+<td>4.5g ABS-TH + 4.5g ABS-KW + 0.3g CB-LUX</td>
+</tr>
+<tr>
+<td><strong>DUCK-EYE-001</strong></td>
+<td>Duck Eye Component</td>
+<td><code>did:web:dpp.brickquack.com:component:duck-eye:batch-2025-Q4-001</code></td>
+<td>1.0g ABS-TH + 0.5g CB-LUX</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-finished-product-level-item-granularity">3. Finished Product Level (Item Granularity) </h3>
+<table>
+<thead>
+<tr>
+<th>Product Code</th>
+<th>Description</th>
+<th>DPP ID</th>
+<th>Serial Number</th>
+<th>Contains</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>LEGO-DUCK-001</strong></td>
+<td>Lego Duck - Complete Set</td>
+<td><code>did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234</code></td>
+<td>SN-2025-LD-001234</td>
+<td>6× RED-BRICK + 10× YELLOW-BRICK + 2× DUCK-EYE + 1× PVC-BE + 1× PAPER-ZA</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="material-flow--quantities">Material Flow &amp; Quantities </h2>
+<h3 id="bottom-up-calculation">Bottom-Up Calculation </h3>
+<h4 id="for-1-lego-duck">For 1 Lego Duck: </h4>
+<p><strong>Raw Materials Required:</strong></p>
+<ul>
+<li><strong>ABS-TH-001</strong>: (6 × 5.0g) + (10 × 4.5g) + (2 × 1.0g) = 30 + 45 + 2 = <strong>77g</strong></li>
+<li><strong>ABS-KW-001</strong>: (6 × 5.0g) + (10 × 4.5g) = 30 + 45 = <strong>75g</strong></li>
+<li><strong>CB-LUX-001</strong>: (6 × 0.5g) + (10 × 0.3g) + (2 × 0.5g) = 3 + 3 + 1 = <strong>7g</strong></li>
+<li><strong>PVC-BE-001</strong>: 1 unit ≈ <strong>8g</strong></li>
+<li><strong>PAPER-ZA-001</strong>: 1 unit ≈ <strong>4g</strong></li>
+</ul>
+<p><strong>Total Weight</strong>: ~171g (including scrap/waste ~95g finished product + 76g packaging/waste)</p>
+<hr>
+<h2 id="dpp-linking-strategy">DPP Linking Strategy </h2>
+<h3 id="parent--child-references">Parent → Child References </h3>
+<p>Each DPP record contains explicit links to its component DPPs in the <code>profiles.component.bom</code> or <code>profiles.product.bom</code> section:</p>
+<h4 id="example-lego-duck--components">Example: Lego Duck → Components </h4>
+<pre data-role="codeBlock" data-info="json" class="language-json json"><code><span class="token property">"profiles"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+  <span class="token property">"product.bom"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+    <span class="token property">"_profile"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+      <span class="token property">"namespace"</span><span class="token operator">:</span> <span class="token string">"product.bom"</span><span class="token punctuation">,</span>
+      <span class="token property">"version"</span><span class="token operator">:</span> <span class="token string">"1.0.0"</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"components"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+      <span class="token punctuation">{</span>
+        <span class="token property">"material"</span><span class="token operator">:</span> <span class="token string">"RED-BRICK-001"</span><span class="token punctuation">,</span>
+        <span class="token property">"quantity"</span><span class="token operator">:</span> <span class="token number">6</span><span class="token punctuation">,</span>
+        <span class="token property">"unit"</span><span class="token operator">:</span> <span class="token string">"pc"</span><span class="token punctuation">,</span>
+        <span class="token property">"dpp"</span><span class="token operator">:</span> <span class="token string">"did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001"</span>
+      <span class="token punctuation">}</span><span class="token punctuation">,</span>
+      <span class="token punctuation">{</span>
+        <span class="token property">"material"</span><span class="token operator">:</span> <span class="token string">"YELLOW-BRICK-001"</span><span class="token punctuation">,</span>
+        <span class="token property">"quantity"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+        <span class="token property">"unit"</span><span class="token operator">:</span> <span class="token string">"pc"</span><span class="token punctuation">,</span>
+        <span class="token property">"dpp"</span><span class="token operator">:</span> <span class="token string">"did:web:dpp.brickquack.com:component:yellow-brick:batch-2025-Q4-001"</span>
+      <span class="token punctuation">}</span>
+      <span class="token comment">// ... etc</span>
+    <span class="token punctuation">]</span>
+  <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre><h4 id="example-red-brick--raw-materials">Example: Red Brick → Raw Materials </h4>
+<pre data-role="codeBlock" data-info="json" class="language-json json"><code><span class="token property">"profiles"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+  <span class="token property">"component.bom"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+    <span class="token property">"_profile"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+      <span class="token property">"namespace"</span><span class="token operator">:</span> <span class="token string">"component.bom"</span><span class="token punctuation">,</span>
+      <span class="token property">"version"</span><span class="token operator">:</span> <span class="token string">"1.0.0"</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"components"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+      <span class="token punctuation">{</span>
+        <span class="token property">"material"</span><span class="token operator">:</span> <span class="token string">"ABS-TH-001"</span><span class="token punctuation">,</span>
+        <span class="token property">"quantity"</span><span class="token operator">:</span> <span class="token number">5.0</span><span class="token punctuation">,</span>
+        <span class="token property">"unit"</span><span class="token operator">:</span> <span class="token string">"g"</span><span class="token punctuation">,</span>
+        <span class="token property">"dpp"</span><span class="token operator">:</span> <span class="token string">"did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001"</span>
+      <span class="token punctuation">}</span><span class="token punctuation">,</span>
+      <span class="token punctuation">{</span>
+        <span class="token property">"material"</span><span class="token operator">:</span> <span class="token string">"ABS-KW-001"</span><span class="token punctuation">,</span>
+        <span class="token property">"quantity"</span><span class="token operator">:</span> <span class="token number">5.0</span><span class="token punctuation">,</span>
+        <span class="token property">"unit"</span><span class="token operator">:</span> <span class="token string">"g"</span><span class="token punctuation">,</span>
+        <span class="token property">"dpp"</span><span class="token operator">:</span> <span class="token string">"did:web:dpp.brickquack.com:raw:abs-kw:batch-2025-10-002"</span>
+      <span class="token punctuation">}</span>
+      <span class="token comment">// ... etc</span>
+    <span class="token punctuation">]</span>
+  <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre><hr>
+<h2 id="traceability-queries">Traceability Queries </h2>
+<h3 id="query-1-what-raw-materials-are-in-this-finished-duck">Query 1: "What raw materials are in this finished duck?" </h3>
+<p><strong>Input</strong>: <code>did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234</code></p>
+<p><strong>Process</strong>:</p>
+<ol>
+<li>Retrieve Lego Duck DPP</li>
+<li>Extract <code>profiles.product.bom.components[]</code> → get component DPPs</li>
+<li>For each component DPP, extract <code>profiles.component.bom.components[]</code> → get raw material DPPs</li>
+<li>Aggregate all raw material DPPs</li>
+</ol>
+<p><strong>Result</strong>:</p>
+<ul>
+<li>ABS-TH-001 (77g total)</li>
+<li>ABS-KW-001 (75g total)</li>
+<li>CB-LUX-001 (7g total)</li>
+<li>PVC-BE-001 (1 unit)</li>
+<li>PAPER-ZA-001 (1 unit)</li>
+</ul>
+<h3 id="query-2-where-did-the-carbon-black-come-from">Query 2: "Where did the Carbon Black come from?" </h3>
+<p><strong>Input</strong>: <code>did:web:dpp.brickquack.com:raw:cb-lux:batch-2025-10-003</code></p>
+<p><strong>Process</strong>:</p>
+<ol>
+<li>Retrieve CB-LUX DPP</li>
+<li>Extract <code>provenance.supplierIds[]</code></li>
+<li>Extract <code>provenance.countryOfOrigin</code></li>
+<li>Extract <code>provenance.facilityIds[]</code></li>
+</ol>
+<p><strong>Result</strong>:</p>
+<ul>
+<li>Supplier: PetroNovo Materials SA (LEI: 549300PETRONOVO456)</li>
+<li>Origin: Luxembourg</li>
+<li>Facility: Esch-sur-Alzette, Luxembourg (GLN: 5790003456791)</li>
+</ul>
+<h3 id="query-3-what-is-the-carbon-footprint-of-this-duck">Query 3: "What is the carbon footprint of this duck?" </h3>
+<p><strong>Input</strong>: <code>did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234</code></p>
+<p><strong>Direct</strong>:</p>
+<ul>
+<li>Duck PCF: 0.45 kg CO2e</li>
+</ul>
+<p><strong>Bottom-Up Calculation</strong>:</p>
+<ul>
+<li>
+<p>ABS-TH (77g): 77 × 2.8/1000 = 0.216 kg CO2e</p>
+</li>
+<li>
+<p>ABS-KW (75g): 75 × 3.2/1000 = 0.240 kg CO2e</p>
+</li>
+<li>
+<p>CB-LUX (7g): 7 × 4.5/1000 = 0.032 kg CO2e</p>
+</li>
+<li>
+<p>PVC-BE (8g): 8 × 1.8/1000 = 0.014 kg CO2e</p>
+</li>
+<li>
+<p>PAPER-ZA (4g): 4 × 0.85/1000 = 0.003 kg CO2e</p>
+</li>
+<li>
+<p><strong>Materials Total</strong>: 0.505 kg CO2e</p>
+</li>
+<li>
+<p>Manufacturing energy: ~0.15 kg CO2e</p>
+</li>
+<li>
+<p><strong>Estimated Total</strong>: ~0.45 kg CO2e ✅ (matches declared)</p>
+</li>
+</ul>
+<hr>
+<h2 id="compliance-chain">Compliance Chain </h2>
+<h3 id="toy-safety-compliance">Toy Safety Compliance </h3>
+<p>All components pass through compliance checks:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Compliance Required</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Raw Materials</strong></td>
+<td>REACH, RoHS</td>
+<td>✅ All certified</td>
+</tr>
+<tr>
+<td><strong>Components</strong></td>
+<td>EN 71-1 (Mechanical), EN 71-3 (Migration), ASTM F963</td>
+<td>✅ Tested and certified</td>
+</tr>
+<tr>
+<td><strong>Finished Product</strong></td>
+<td>CE Mark, EN 71 full suite, ASTM F963, CPSIA</td>
+<td>✅ Certified</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Traceability</strong>: Any compliance failure at raw material level can be traced up to affected finished products via DPP links.</p>
+<hr>
+<h2 id="environmental-profile-summary">Environmental Profile Summary </h2>
+<h3 id="finished-product-lego-duck-001">Finished Product (LEGO-DUCK-001) </h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+<th>Unit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Carbon Footprint</strong></td>
+<td>0.45</td>
+<td>kg CO2e</td>
+</tr>
+<tr>
+<td><strong>Water Footprint</strong></td>
+<td>12.5</td>
+<td>Liters</td>
+</tr>
+<tr>
+<td><strong>Energy Consumption</strong></td>
+<td>1.8</td>
+<td>kWh</td>
+</tr>
+<tr>
+<td><strong>Recyclability Score</strong></td>
+<td>85</td>
+<td>%</td>
+</tr>
+<tr>
+<td><strong>Recycled Content</strong></td>
+<td>12</td>
+<td>%</td>
+</tr>
+<tr>
+<td><strong>Repairability Score</strong></td>
+<td>10</td>
+<td>/10</td>
+</tr>
+</tbody>
+</table>
+<h3 id="circularity-features">Circularity Features </h3>
+<p>✅ <strong>Design for Disassembly</strong>: Yes (all bricks compatible with existing Lego systems)<br>
+✅ <strong>Spare Parts Availability</strong>: Lifetime (all Lego bricks are interchangeable)<br>
+✅ <strong>Recycling Options</strong>:</p>
+<ul>
+<li>ABS bricks → Mechanical recycling or Lego Replay program</li>
+<li>PVC packaging → Specialized recycling</li>
+<li>Paper packaging → Standard paper recycling or composting</li>
+</ul>
+<p>✅ <strong>End-of-Life Instructions</strong>: Provided in DPP documents</p>
+<hr>
+<h2 id="data-quality--verification">Data Quality &amp; Verification </h2>
+<h3 id="environmental-data-quality">Environmental Data Quality </h3>
+<table>
+<thead>
+<tr>
+<th>Data Point</th>
+<th>Method</th>
+<th>Quality Level</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product Carbon Footprint</td>
+<td>ISO 14067</td>
+<td>Verified</td>
+<td>Independent assessment</td>
+</tr>
+<tr>
+<td>Material composition</td>
+<td>Lab analysis</td>
+<td>Verified</td>
+<td>Supplier certificates</td>
+</tr>
+<tr>
+<td>Recyclability score</td>
+<td>Industry standard</td>
+<td>Calculated</td>
+<td>Based on material composition</td>
+</tr>
+<tr>
+<td>Recycled content</td>
+<td>Supplier declaration</td>
+<td>Verified</td>
+<td>Supplier audit trail</td>
+</tr>
+</tbody>
+</table>
+<h3 id="supplier-verification">Supplier Verification </h3>
+<p>All suppliers have:</p>
+<ul>
+<li>✅ Legal Entity Identifier (LEI)</li>
+<li>✅ ISO 9001:2015 certification</li>
+<li>✅ Environmental certifications (ISO 14001 or equivalent)</li>
+<li>✅ Sustainability ratings (EcoVadis or similar)</li>
+</ul>
+<hr>
+<h2 id="integration-points">Integration Points </h2>
+<h3 id="erpsap-integration">ERP/SAP Integration </h3>
+<table>
+<thead>
+<tr>
+<th>DPP Field</th>
+<th>SAP Table/Field</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>product.model</code></td>
+<td>MARA-MATNR</td>
+<td>Material master link</td>
+</tr>
+<tr>
+<td><code>product.batchOrLot</code></td>
+<td>CHARG</td>
+<td>Batch traceability</td>
+</tr>
+<tr>
+<td><code>product.serialNumber</code></td>
+<td>SERNR</td>
+<td>Serial number tracking</td>
+</tr>
+<tr>
+<td><code>provenance.facilityId</code></td>
+<td>T001W-WERKS</td>
+<td>Plant identifier</td>
+</tr>
+<tr>
+<td><code>provenance.supplierIds[].id</code></td>
+<td>LFA1-LIFNR</td>
+<td>Supplier master</td>
+</tr>
+<tr>
+<td><code>profiles.product.bom.components</code></td>
+<td>STPO</td>
+<td>BOM items</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ibp-integration">IBP Integration </h3>
+<table>
+<thead>
+<tr>
+<th>DPP Field</th>
+<th>IBP Field</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>planningInsights.demandForecast</code></td>
+<td>Statistical forecast</td>
+<td>Demand planning</td>
+</tr>
+<tr>
+<td><code>provenance.manufactureDate</code></td>
+<td>Production date</td>
+<td>Supply planning</td>
+</tr>
+<tr>
+<td><code>profiles.product.specifications.weight</code></td>
+<td>Net weight</td>
+<td>Logistics planning</td>
+</tr>
+<tr>
+<td>Environmental footprint</td>
+<td>Sustainability KPI</td>
+<td>ESG reporting</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="usage-instructions">Usage Instructions </h2>
+<h3 id="loading-sample-data">Loading Sample Data </h3>
+<pre data-role="codeBlock" data-info="bash" class="language-bash bash"><code><span class="token comment"># Copy sample DPPs to testdata location</span>
+<span class="token function">cp</span> lego-duck-sample-dpps.ndjson testdata.ndjson
+
+<span class="token comment"># Or append to existing testdata</span>
+<span class="token function">cat</span> lego-duck-sample-dpps.ndjson <span class="token operator">&gt;&gt;</span> testdata.ndjson
+
+<span class="token comment"># Rebuild database with new data</span>
+<span class="token function">docker-compose</span> down <span class="token parameter variable">-v</span>
+<span class="token function">docker-compose</span> up <span class="token parameter variable">-d</span>
+</code></pre><h3 id="querying-dpps">Querying DPPs </h3>
+<pre data-role="codeBlock" data-info="sql" class="language-sql sql"><code><span class="token comment">-- Get the Lego Duck DPP</span>
+<span class="token keyword keyword-SELECT">SELECT</span> <span class="token operator">*</span> <span class="token keyword keyword-FROM">FROM</span> dpp 
+<span class="token keyword keyword-WHERE">WHERE</span> dpp_id <span class="token operator">=</span> <span class="token string">'did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234'</span><span class="token punctuation">;</span>
+
+<span class="token comment">-- Get all component DPPs for the duck</span>
+<span class="token keyword keyword-SELECT">SELECT</span> 
+    dpp_id<span class="token punctuation">,</span>
+    payload<span class="token operator">-</span><span class="token operator">&gt;&gt;</span><span class="token string">'product'</span><span class="token operator">-</span><span class="token operator">&gt;&gt;</span><span class="token string">'model'</span> <span class="token keyword keyword-as">as</span> model<span class="token punctuation">,</span>
+    payload<span class="token operator">-</span><span class="token operator">&gt;</span><span class="token string">'provenance'</span><span class="token operator">-</span><span class="token operator">&gt;&gt;</span><span class="token string">'manufactureDate'</span> <span class="token keyword keyword-as">as</span> manufacture_date
+<span class="token keyword keyword-FROM">FROM</span> dpp_version 
+<span class="token keyword keyword-WHERE">WHERE</span> dpp_id <span class="token operator">LIKE</span> <span class="token string">'%brickquack.com:component:%'</span><span class="token punctuation">;</span>
+
+<span class="token comment">-- Get carbon footprint hierarchy</span>
+<span class="token keyword keyword-SELECT">SELECT</span> 
+    dpp_id<span class="token punctuation">,</span>
+    payload<span class="token operator">-</span><span class="token operator">&gt;</span><span class="token string">'product'</span><span class="token operator">-</span><span class="token operator">&gt;&gt;</span><span class="token string">'model'</span> <span class="token keyword keyword-as">as</span> model<span class="token punctuation">,</span>
+    payload<span class="token operator">-</span><span class="token operator">&gt;</span><span class="token string">'environmentalFootprint'</span><span class="token operator">-</span><span class="token operator">&gt;</span><span class="token string">'productCarbonFootprint'</span><span class="token operator">-</span><span class="token operator">&gt;&gt;</span><span class="token string">'value'</span> <span class="token keyword keyword-as">as</span> pcf
+<span class="token keyword keyword-FROM">FROM</span> dpp_version
+<span class="token keyword keyword-WHERE">WHERE</span> dpp_id <span class="token operator">LIKE</span> <span class="token string">'%brickquack.com%'</span>
+<span class="token keyword keyword-ORDER">ORDER</span> <span class="token keyword keyword-BY">BY</span> pcf <span class="token keyword keyword-DESC">DESC</span><span class="token punctuation">;</span>
+</code></pre><h3 id="api-queries">API Queries </h3>
+<pre data-role="codeBlock" data-info="bash" class="language-bash bash"><code><span class="token comment"># Get finished product DPP</span>
+<span class="token function">curl</span> http://api:8000/dpp/did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234
+
+<span class="token comment"># Get component DPP</span>
+<span class="token function">curl</span> http://api:8000/dpp/did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001
+
+<span class="token comment"># Get raw material DPP</span>
+<span class="token function">curl</span> http://api:8000/dpp/did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001
+</code></pre><hr>
+<h2 id="next-steps">Next Steps </h2>
+<ol>
+<li>✅ <strong>Master data templates created</strong></li>
+<li>✅ <strong>Sample DPP records generated</strong></li>
+<li>⏳ <strong>Fill Excel templates with actual data</strong></li>
+<li>⏳ <strong>Validate geographic consistency in plant data</strong></li>
+<li>⏳ <strong>Calculate actual environmental metrics</strong></li>
+<li>⏳ <strong>Generate batch-specific DPPs for production runs</strong></li>
+<li>⏳ <strong>Integrate with existing ERP system</strong></li>
+<li>⏳ <strong>Set up API endpoints for DPP queries</strong></li>
+<li>⏳ <strong>Create consumer-facing QR codes</strong></li>
+<li>⏳ <strong>Establish DPP governance processes</strong></li>
+</ol>
+<hr>
+<h2 id="references">References </h2>
+<ul>
+<li>DPP Schema: <code>schemas/core/1-0-0.schema.json</code></li>
+<li>Master Data Template: <code>MASTER_DATA_TEMPLATE.md</code></li>
+<li>Sample DPPs: <code>lego-duck-sample-dpps.ndjson</code></li>
+<li>Database Schema: <code>seed/postgres/001_schema.sql</code></li>
+</ul>
+
+      </div>
+      
+      
+    
+    
+    
+    
+    
+    
+  
+    </body></html>

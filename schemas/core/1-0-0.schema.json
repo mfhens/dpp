@@ -48,7 +48,48 @@
         "batchOrLot": { "type": "string" },
         "serialNumber": { "type": "string" },
         "description": { "type": "string" },
-        "category": { "type": "string" }
+        "category": { "type": "string" },
+        "identifiers": {
+          "type": "object",
+          "description": "Product identifiers including materials and battery component metadata",
+          "properties": {
+            "productIds": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "description": "Type of identifier (e.g., GTIN, SKU, internal)" },
+                  "value": { "type": "string" }
+                },
+                "required": ["type", "value"]
+              }
+            },
+            "materials": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "description": "Material name (e.g., wood, steel)" },
+                  "type": { "type": "string" },
+                  "percentage": { "type": "number", "minimum": 0, "maximum": 100 },
+                  "origin": { "type": "string" },
+                  "certifications": { "type": "array", "items": { "type": "string" } }
+                },
+                "required": ["name"]
+              }
+            },
+            "batteryMetadata": {
+              "type": "object",
+              "description": "Battery component metadata if applicable",
+              "properties": {
+                "chemistry": { "type": "string" },
+                "capacity": { "type": "string" },
+                "voltage": { "type": "string" },
+                "components": { "type": "array", "items": { "type": "object" } }
+              }
+            }
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -64,6 +105,33 @@
         "facilityId": {
           "type": "string",
           "description": "Unique facility identifier (e.g., GLN) where available."
+        },
+        "facilityIds": {
+          "type": "array",
+          "description": "Multiple facility identifiers if product involves multiple facilities",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "description": "Type of facility (e.g., manufacturing, assembly, testing)" },
+              "location": { "type": "string" }
+            },
+            "required": ["id"]
+          }
+        },
+        "supplierIds": {
+          "type": "array",
+          "description": "Supplier information",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "type": { "type": "string", "description": "Type of supplier (e.g., raw material, component)" },
+              "legalEntityIdentifier": { "type": "string", "description": "LEI or equivalent" }
+            },
+            "required": ["id"]
+          }
         },
         "countryOfOrigin": { "type": "string" },
         "manufactureDate": { "type": "string", "format": "date" }
@@ -98,6 +166,125 @@
           "mime": { "type": "string" }
         },
         "additionalProperties": false
+      }
+    },
+
+    "substancesOfConcern": {
+      "type": "array",
+      "description": "Substances of concern present in the product",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "casNumber": { "type": "string", "description": "CAS Registry Number" },
+          "concentration": { "type": "number", "description": "Concentration in percentage or ppm" },
+          "unit": { "type": "string", "enum": ["percentage", "ppm", "mg/kg"] },
+          "regulatoryList": { "type": "string", "description": "E.g., REACH SVHC, RoHS" },
+          "location": { "type": "string", "description": "Where in the product this substance is located" }
+        },
+        "required": ["name"]
+      }
+    },
+
+    "environmentalFootprint": {
+      "type": "object",
+      "description": "Environmental footprint data or link to it",
+      "properties": {
+        "productCarbonFootprint": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "number", "description": "PCF value" },
+            "unit": { "type": "string", "default": "kg CO2e" },
+            "scope": { "type": "string", "enum": ["cradle-to-gate", "cradle-to-grave", "gate-to-gate"] },
+            "calculationMethod": { "type": "string" },
+            "dataQuality": { "type": "string" }
+          }
+        },
+        "externalLink": {
+          "type": "string",
+          "format": "uri",
+          "description": "Link to external environmental footprint data"
+        },
+        "waterFootprint": { "type": "number" },
+        "energyConsumption": { "type": "number" }
+      }
+    },
+
+    "circularity": {
+      "type": "object",
+      "description": "Circularity and recyclability information",
+      "properties": {
+        "recyclabilityScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Percentage of product that can be recycled"
+        },
+        "recyclabilityInformation": {
+          "type": "object",
+          "properties": {
+            "recyclableMaterials": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "material": { "type": "string" },
+                  "percentage": { "type": "number" },
+                  "recyclingProcess": { "type": "string" }
+                }
+              }
+            },
+            "disposalGuidelines": {
+              "type": "string",
+              "description": "Instructions for proper disposal"
+            },
+            "eolInstructions": {
+              "type": "string",
+              "description": "End-of-life instructions"
+            }
+          }
+        },
+        "recycledContent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Percentage of recycled content in the product"
+        },
+        "repairability": {
+          "type": "object",
+          "properties": {
+            "score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10,
+              "description": "Repairability score (TBC)"
+            },
+            "assessmentMethod": { "type": "string" },
+            "spareParts": {
+              "type": "object",
+              "properties": {
+                "availability": { "type": "string" },
+                "period": { "type": "string" }
+              }
+            }
+          }
+        },
+        "designForDisassembly": { "type": "boolean" },
+        "circulatoryPotential": { "type": "string" }
+      }
+    },
+
+    "planningInsights": {
+      "type": "object",
+      "description": "Planning insights (initially empty)",
+      "properties": {
+        "demandForecast": { "type": "string" },
+        "supplyChainOptimization": { "type": "string" },
+        "maintenanceSchedule": { "type": "string" },
+        "customInsights": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
       }
     },
 
