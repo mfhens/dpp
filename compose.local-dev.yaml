@@ -1,0 +1,37 @@
+# Docker Compose file for local development
+# Only runs PostgreSQL in Docker while API and Portal run locally
+
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER_FILE: /run/secrets/postgres_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB: ${POSTGRES_DB:-dpp}
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./seed/postgres:/docker-entrypoint-initdb.d:ro
+    secrets:
+      - postgres_user
+      - postgres_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $(cat /run/secrets/postgres_user) -d ${POSTGRES_DB:-dpp}"]
+      interval: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - backend
+
+secrets:
+  postgres_user:
+    file: secrets/postgres_user.txt
+  postgres_password:
+    file: secrets/postgres_password.txt
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  pgdata: {}

@@ -36,7 +36,8 @@ MAX_DB_ID_LEN = 512  # current DB schema
 app = FastAPI(title="DPP API", version="0.2.0")
 
 # Load canonical schema for payload validation
-SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "core" / "1-0-0.schema.json"
+# Go up 2 levels: dpp_api/main.py -> dpp_api -> api -> project_root
+SCHEMA_PATH = Path(__file__).resolve().parents[2] / "schemas" / "core" / "1-0-0.schema.json"
 with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
     CORE_SCHEMA = json.load(f)
 SCHEMA_VALIDATOR = Draft202012Validator(CORE_SCHEMA)

@@ -168,6 +168,37 @@ package "API Service" {
 * Modern Node.js if you intend to hack on `portal/` directly
 * Python toolchain if you intend to hack on `api/`
 
+### Development Options
+
+You have two options for local development:
+
+**Option 1: Full Docker Stack** (recommended for testing the complete system)
+```bash
+# in repo root
+docker compose pull
+docker compose up -d
+
+# watch logs if needed
+docker compose logs -f --tail=200
+```
+
+**Option 2: Local Development** (recommended for API/Portal development)
+
+Run only PostgreSQL in Docker and run the API and Portal locally from the command line:
+
+```powershell
+# Start PostgreSQL and see instructions
+.\start-local-dev.ps1
+```
+
+This approach is faster for development because:
+- Code changes reload instantly without rebuilding containers
+- You can debug directly in your IDE
+- Logs are clearer and more accessible
+- It's easier to run tests and linters
+
+See **[LOCAL_DEV.md](LOCAL_DEV.md)** for complete local development instructions.
+
 ### Secrets setup
 
 Run the helper script to create per-service secret files used by `compose.yaml`:
@@ -181,15 +212,6 @@ Run the helper script to create per-service secret files used by `compose.yaml`:
 > These scripts create the files expected by services at runtime, for example admin credentials for Keycloak or DB user/password files referenced from `compose.yaml`. Validate with `verify-secrets.ps1`.
 
 ### First run
-
-```bash
-# in repo root
-docker compose pull
-docker compose up -d
-
-# watch logs if needed
-docker compose logs -f --tail=200
-```
 
 When Keycloak starts with a realm JSON in a mounted path, the server can import it on boot. The documented approach is realm import using JSON files. ([Keycloak][2])
 
