@@ -38,22 +38,24 @@
 
 ---
 
-## What’s in this repo
+## What's in this repo
 
 The top level contains these directories and files:
 
 * `api/` — backend service source
 * `portal/` — frontend portal
 * `opa/` — policy engine artifacts and config
+* `keycloak/` — Keycloak container configuration
 * `seed/` — initial identity and sample data seeding, for example a Keycloak realm export
-* `compose.yaml` — local orchestration
+* `schemas/` — JSON schema definitions for DPP payloads
+* `secrets/` — local secret files for Docker deployment (git-ignored)
+* `docs/` — additional documentation
+* `compose.yaml` — full Docker deployment with all services
+* `run-local.ps1` — simple local development script (API + Portal, no Docker)
+* `setup-secrets.ps1` and `verify-secrets.ps1` — helper scripts to provision local secret files
 * `C4 - Container.wsd` — PlantUML architecture sketch
 * `bundle.rego` — example Rego policy entry point
 * `data.json` — example policy data bundle content
-* `setup-secrets.ps1` and `verify-secrets.ps1` — helper scripts to provision local secret files
-* `.gitignore`, `dpp.code-workspace` — repo hygiene and VS Code workspace
-
-*Source: repo file list and language mix visible on GitHub.* ([GitHub][1])
 
 ---
 
@@ -162,46 +164,59 @@ package "API Service" {
 
 ### Prerequisites
 
-* Docker Desktop or compatible engine
-* Make or PowerShell for convenience
+* **For local development**: Python (with uv or pip) and Node.js (with npm or pnpm)
+* **For full deployment**: Docker Desktop or compatible engine
 * PlantUML preview plugin if you want to render the diagrams locally
-* Modern Node.js if you intend to hack on `portal/` directly
-* Python toolchain if you intend to hack on `api/`
 
-### Development Options
+### Quick Start
 
-You have two options for local development:
+**Option 1: Simple Local Development** (recommended for development)
 
-**Option 1: Full Docker Stack** (recommended for testing the complete system)
+Run the API with SQLite and the Portal locally - no Docker required:
+
+```powershell
+# From repo root - start with empty database
+.\run-local.ps1
+
+# Or start with Lego Duck sample data
+.\run-local.ps1 -Seed
+```
+
+This gives you:
+- ✅ API on http://localhost:8000 (with SQLite database)
+- ✅ Portal on http://localhost:3000
+- ✅ Optional Lego Duck sample data (-Seed flag)
+- ✅ Fast iteration: code changes reload instantly
+- ✅ Easy debugging in your IDE
+- ⚠️ No authentication or external services
+
+**Option 2: Full Docker Deployment** (for testing complete system)
+
+Run the complete stack with all services (PostgreSQL, Keycloak, OPA, MinIO, ImmuDB, etc.):
+
 ```bash
-# in repo root
-docker compose pull
+# Setup secrets first (one time)
+.\setup-secrets.ps1
+
+# Start all services
 docker compose up -d
 
-# watch logs if needed
+# Watch logs if needed
 docker compose logs -f --tail=200
 ```
 
-**Option 2: Local Development** (recommended for API/Portal development)
+This gives you:
+- ✅ Full production-like environment
+- ✅ Authentication via Keycloak
+- ✅ Policy enforcement via OPA
+- ✅ Object storage, audit logs, etc.
+- ⚠️ Slower startup and requires Docker
 
-Run only PostgreSQL in Docker and run the API and Portal locally from the command line:
+### Secrets setup (Docker only)
 
-```powershell
-# Start PostgreSQL and see instructions
-.\start-local-dev.ps1
-```
+### Secrets setup (Docker only)
 
-This approach is faster for development because:
-- Code changes reload instantly without rebuilding containers
-- You can debug directly in your IDE
-- Logs are clearer and more accessible
-- It's easier to run tests and linters
-
-See **[LOCAL_DEV.md](LOCAL_DEV.md)** for complete local development instructions.
-
-### Secrets setup
-
-Run the helper script to create per-service secret files used by `compose.yaml`:
+Required only for full Docker deployment. Run the helper script to create per-service secret files used by `compose.yaml`:
 
 ```powershell
 # Windows PowerShell
@@ -211,11 +226,14 @@ Run the helper script to create per-service secret files used by `compose.yaml`:
 
 > These scripts create the files expected by services at runtime, for example admin credentials for Keycloak or DB user/password files referenced from `compose.yaml`. Validate with `verify-secrets.ps1`.
 
-### First run
-
-When Keycloak starts with a realm JSON in a mounted path, the server can import it on boot. The documented approach is realm import using JSON files. ([Keycloak][2])
-
 ### Useful commands
+
+**Local development:**
+```powershell
+# Stop local dev (Ctrl+C in the terminal running run-local.ps1)
+```
+
+**Docker deployment:**
 
 ```bash
 # stop everything

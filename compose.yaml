@@ -1,3 +1,6 @@
+# Full production deployment with Docker Compose
+# For local development, use: .\run-local.ps1
+
 services:
   postgres:
     image: postgres:latest
@@ -124,8 +127,8 @@ services:
       context: .
       dockerfile: api/Dockerfile
     environment:
-      DATABASE_URL: postgresql+psycopg://dpp_sx2ZMqdA:8dpvC2ubuYsbcuAU91T0h8kRwRrMZCEtZ0mAfk88@postgres:5432/dpp
-      # DATABASE_URL_FILE: /run/secrets/database_url
+      ENVIRONMENT: docker
+      DATABASE_URL_FILE: /run/secrets/database_url
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY_FILE: /run/secrets/minio_root_user
       MINIO_SECRET_KEY_FILE: /run/secrets/minio_root_password
@@ -177,30 +180,6 @@ services:
     networks:
       - frontend
 
-  # Security monitoring and logging (Windows compatible)
-  security_monitor:
-    image: fluent/fluent-bit:latest
-    volumes:
-      - ./security/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
-    profiles:
-      - monitoring
-    networks:
-      - backend
-
-  # Secrets rotation service (demo)
-  secrets_rotator:
-    build: ./security/secrets-rotator
-    environment:
-      ROTATION_INTERVAL: ${SECRETS_ROTATION_INTERVAL:-24h}
-      VAULT_ADDR: ${VAULT_ADDR}
-      VAULT_TOKEN_FILE: /run/secrets/vault_token
-    secrets:
-      - vault_token
-    profiles:
-      - production
-    networks:
-      - backend
-
 secrets:
   postgres_user:
     file: secrets/postgres_user.txt
@@ -226,8 +205,6 @@ secrets:
     file: secrets/encryption_key.txt
   nextauth_secret:
     file: secrets/nextauth_secret.txt
-  vault_token:
-    file: secrets/vault_token.txt
 
 networks:
   frontend:

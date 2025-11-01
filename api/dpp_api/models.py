@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import os
 import time
 import datetime as dt
 from typing import Iterator, List, Optional
@@ -30,6 +29,9 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.exc import OperationalError
 
+# Import config for environment-aware setup
+from .config import settings
+
 # Prefer PostgreSQL JSONB when available; otherwise use generic JSON (SQLite fallback)
 try:
     from sqlalchemy.dialects.postgresql import JSONB as JSONType  # type: ignore
@@ -41,39 +43,12 @@ except Exception:  # pragma: no cover
 # Engine & Session
 # --------------------------------------------------------------------------------------
 
-def _read_env_or_file(var: str) -> Optional[str]:
-    """
-    Prefer VAR_FILE (e.g., DATABASE_URL_FILE from Docker secrets); else use VAR.
-    Trims trailing whitespace/newlines (common for Docker secrets).
-    """
-    file_var = f"{var}_FILE"
-    file_path = os.getenv(file_var)
-    if file_path:
-        with open(file_path, "r") as f:
-            return f.read().strip()
-    val = os.getenv(var)
-    return val.strip() if val else None
-
-
-def _resolve_db_url() -> str:
-    """
-    Resolve the database URL in a container-safe way.
-    Priority: DATABASE_URL_FILE -> DATABASE_URL -> sane default.
-    The fallback is SQLite for local ad-hoc runs (no localhost-in-container footguns).
-    """
-    url = _read_env_or_file("DATABASE_URL")
-    if url:
-        return url
-
-    # Fallbacks:
-    # - If running in Docker and you *expect* Postgres, set DATABASE_URL_FILE/ENV explicitly.
-    # - For ad-hoc local runs, SQLite file DB keeps it simple without requiring a service.
-    return "sqlite+pysqlite:///./dpp.db"
-
-
-SQL_ECHO = os.getenv("SQL_ECHO", "0").lower() in {"1", "true", "yes"}
-
-ENGINE = create_engine(_resolve_db_url(), echo=SQL_ECHO, pool_pre_ping=True, future=True)
+ENGINE = create_engine(
+    settings.resolved_database_url,
+    echo=settings.sql_echo,
+    pool_pre_ping=True,
+    future=True
+)
 SessionLocal = sessionmaker(bind=ENGINE, autoflush=False, autocommit=False, expire_on_commit=False, class_=Session)
 
 
