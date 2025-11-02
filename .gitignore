@@ -235,3 +235,5 @@ coverage/
 .env.production.local
 
 *.sh text eol=lf
+
+dpp.db
