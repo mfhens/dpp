@@ -33,6 +33,7 @@ from .config import settings
 
 # Use appropriate JSON type based on database dialect
 from sqlalchemy import JSON
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 # --------------------------------------------------------------------------------------
@@ -46,6 +47,11 @@ ENGINE = create_engine(
     future=True
 )
 SessionLocal = sessionmaker(bind=ENGINE, autoflush=False, autocommit=False, expire_on_commit=False, class_=Session)
+
+# Select appropriate JSON type based on database dialect
+# PostgreSQL: Use JSONB for better query performance and indexing support
+# SQLite: Use JSON for compatibility
+JSONType = JSONB if ENGINE.dialect.name == "postgresql" else JSON
 
 
 def get_session() -> Iterator[Session]:
@@ -145,8 +151,8 @@ class DppVersion(Base):
         default=lambda: dt.datetime.now(dt.timezone.utc),
         index=True,
     )
-    # JSON-LD payload
-    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    # JSON-LD payload (JSONB on PostgreSQL, JSON on SQLite)
+    payload: Mapped[dict] = mapped_column(JSONType, nullable=False)
 
     dpp: Mapped[Dpp] = relationship(back_populates="versions")
 
