@@ -14,7 +14,6 @@ from sqlalchemy import (
     DateTime,
     Integer,
     ForeignKey,
-    text,
     UniqueConstraint,
     Index,
     event,
@@ -32,11 +31,8 @@ from sqlalchemy.exc import OperationalError
 # Import config for environment-aware setup
 from .config import settings
 
-# Prefer PostgreSQL JSONB when available; otherwise use generic JSON (SQLite fallback)
-try:
-    from sqlalchemy.dialects.postgresql import JSONB as JSONType  # type: ignore
-except Exception:  # pragma: no cover
-    from sqlalchemy import JSON as JSONType  # type: ignore
+# Use appropriate JSON type based on database dialect
+from sqlalchemy import JSON
 
 
 # --------------------------------------------------------------------------------------
@@ -107,12 +103,14 @@ class Dpp(Base):
     product_id: Mapped[str] = mapped_column(String(255), index=True)
     dpp_url: Mapped[str] = mapped_column(String(1024), unique=True, index=True)
     created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=text("NOW()"), index=True
+        DateTime(timezone=True), 
+        default=lambda: dt.datetime.now(dt.timezone.utc),
+        index=True
     )
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("NOW()"),
-        onupdate=text("NOW()"),
+        default=lambda: dt.datetime.now(dt.timezone.utc),
+        onupdate=lambda: dt.datetime.now(dt.timezone.utc),
         index=True,
     )
 
@@ -144,11 +142,11 @@ class DppVersion(Base):
     # Effective-from timestamp of this version
     valid_from: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("NOW()"),
+        default=lambda: dt.datetime.now(dt.timezone.utc),
         index=True,
     )
     # JSON-LD payload
-    payload: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     dpp: Mapped[Dpp] = relationship(back_populates="versions")
 
