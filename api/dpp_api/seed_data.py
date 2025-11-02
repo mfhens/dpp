@@ -54,7 +54,8 @@ def seed_from_ndjson(
         
         if existing:
             # Update existing
-            existing.updated_at = db.execute("SELECT NOW()").scalar()
+            from datetime import datetime, timezone
+            existing.updated_at = datetime.now(timezone.utc)
             db.add(existing)
         else:
             # Extract product_id with fallback logic

@@ -17,6 +17,13 @@ async function getDpp(id: string, at?: string) {
 }
 
 // --- Payload types ---
+type ProductIdentifier = { type: string; value: string };
+type Material = { name: string; type: string; percentage: number; origin?: string; certifications?: string[]; recyclingProcess?: string };
+type RecyclableMaterial = { material: string; percentage: number; recyclingProcess?: string };
+type SubstanceOfConcern = { name: string; casNumber?: string; concentration?: number; unit?: string; regulatoryList?: string; location?: string };
+type SupplierId = { id: string; name?: string; type?: string; legalEntityIdentifier?: string };
+type FacilityId = { id: string; type?: string; location?: string };
+
 type DppPayload = {
   id?: string;
   schemaVersion?: string;
@@ -24,10 +31,61 @@ type DppPayload = {
   registryId?: string;
   createdAt?: string;
   updatedAt?: string;
-  product?: { category?: string; model?: string; batchOrLot?: string; serialNumber?: string; gtin?: string; description?: string };
-  provenance?: { operatorId?: string; facilityId?: string; countryOfOrigin?: string; manufactureDate?: string };
+  product?: { 
+    category?: string; 
+    model?: string; 
+    batchOrLot?: string; 
+    serialNumber?: string; 
+    gtin?: string; 
+    description?: string;
+    identifiers?: {
+      productIds?: ProductIdentifier[];
+      materials?: Material[];
+    };
+  };
+  provenance?: { 
+    operatorId?: string; 
+    facilityId?: string; 
+    facilityIds?: FacilityId[];
+    supplierIds?: SupplierId[];
+    countryOfOrigin?: string; 
+    manufactureDate?: string;
+  };
   compliance?: Array<{ scheme: string; reference: string; validFrom?: string; validTo?: string }>;
   documents?: Array<{ type: string; url: string; hash?: string; mime?: string }>;
+  substancesOfConcern?: SubstanceOfConcern[];
+  environmentalFootprint?: {
+    productCarbonFootprint?: {
+      value?: number;
+      unit?: string;
+      scope?: string;
+      calculationMethod?: string;
+      dataQuality?: string;
+    };
+    externalLink?: string;
+    waterFootprint?: number;
+    energyConsumption?: number;
+  };
+  circularity?: {
+    recyclabilityScore?: number;
+    recyclabilityInformation?: {
+      recyclableMaterials?: RecyclableMaterial[];
+      disposalGuidelines?: string;
+      eolInstructions?: string;
+    };
+    recycledContent?: number;
+    repairability?: {
+      score?: number;
+      assessmentMethod?: string;
+      spareParts?: {
+        availability?: string;
+        period?: string;
+      };
+    };
+    designForDisassembly?: boolean;
+    circulatoryPotential?: string;
+  };
+  planningInsights?: Record<string, string>;
   profiles?: Record<string, { _profile?: { namespace: string; version: string }; [k: string]: unknown }>;
 };
 
@@ -128,16 +186,228 @@ export default async function Page({ params, searchParams }: { params: { id: str
         />
       </Section>
 
+      {/* Product Identifiers */}
+      {p.product?.identifiers?.productIds && p.product.identifiers.productIds.length > 0 && (
+        <Section title="Product Identifiers">
+          <table className="ey-table">
+            <thead>
+              <tr><th>Type</th><th>Value</th></tr>
+            </thead>
+            <tbody>
+              {p.product.identifiers.productIds.map((pid, i) => (
+                <tr key={`pid-${i}`}>
+                  <td><Pill tone="blue">{pid.type}</Pill></td>
+                  <td>{pid.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      )}
+
+      {/* Materials Composition */}
+      {p.product?.identifiers?.materials && p.product.identifiers.materials.length > 0 && (
+        <Section title="Materials & Composition">
+          <table className="ey-table">
+            <thead>
+              <tr><th>Material Name</th><th>Type</th><th>Percentage</th><th>Origin</th><th>Certifications</th></tr>
+            </thead>
+            <tbody>
+              {p.product.identifiers.materials.map((mat, i) => (
+                <tr key={`mat-${i}`}>
+                  <td>{mat.name}</td>
+                  <td><Pill>{mat.type}</Pill></td>
+                  <td>{mat.percentage}%</td>
+                  <td>{mat.origin ?? "—"}</td>
+                  <td>{mat.certifications?.join(", ") ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      )}
+
       {/* Provenance */}
       <Section title="Provenance">
         <CardList
           items={[
             { label: "Economic Operator (LEI)", value: p.provenance?.operatorId },
-            { label: "Facility (GLN)", value: p.provenance?.facilityId },
+            { label: "Primary Facility (GLN)", value: p.provenance?.facilityId },
             { label: "Country of Origin", value: p.provenance?.countryOfOrigin },
             { label: "Manufacture Date", value: fmtDate(p.provenance?.manufactureDate) },
           ]}
         />
+      </Section>
+
+      {/* Facility Information */}
+      {p.provenance?.facilityIds && p.provenance.facilityIds.length > 0 && (
+        <Section title="Facility Information">
+          <table className="ey-table">
+            <thead>
+              <tr><th>Facility ID</th><th>Type</th><th>Location</th></tr>
+            </thead>
+            <tbody>
+              {p.provenance.facilityIds.map((fac, i) => (
+                <tr key={`fac-${i}`}>
+                  <td><code className="ey-chip">{fac.id}</code></td>
+                  <td><Pill tone="amber">{fac.type ?? "—"}</Pill></td>
+                  <td>{fac.location ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      )}
+
+      {/* Supplier Information */}
+      {p.provenance?.supplierIds && p.provenance.supplierIds.length > 0 && (
+        <Section title="Supplier Information">
+          <table className="ey-table">
+            <thead>
+              <tr><th>Supplier ID</th><th>Name</th><th>Type</th><th>Legal Entity Identifier</th></tr>
+            </thead>
+            <tbody>
+              {p.provenance.supplierIds.map((sup, i) => (
+                <tr key={`sup-${i}`}>
+                  <td><code className="ey-chip">{sup.id}</code></td>
+                  <td>{sup.name ?? "—"}</td>
+                  <td><Pill>{sup.type ?? "—"}</Pill></td>
+                  <td>{sup.legalEntityIdentifier ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      )}
+
+      {/* Substances of Concern */}
+      {p.substancesOfConcern && p.substancesOfConcern.length > 0 && (
+        <Section title="Substances of Concern">
+          <table className="ey-table">
+            <thead>
+              <tr><th>Substance</th><th>CAS Number</th><th>Concentration</th><th>Regulatory List</th><th>Location</th></tr>
+            </thead>
+            <tbody>
+              {p.substancesOfConcern.map((sub, i) => (
+                <tr key={`sub-${i}`}>
+                  <td>{sub.name}</td>
+                  <td>{sub.casNumber ?? "—"}</td>
+                  <td>{sub.concentration !== undefined ? `${sub.concentration} ${sub.unit ?? ""}` : "—"}</td>
+                  <td><Pill tone="amber">{sub.regulatoryList ?? "—"}</Pill></td>
+                  <td>{sub.location ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      )}
+      {!p.substancesOfConcern || p.substancesOfConcern.length === 0 && (
+        <Section title="Substances of Concern">
+          <p className="text-sm text-emerald-600">✓ No substances of concern identified</p>
+        </Section>
+      )}
+
+      {/* Environmental Footprint */}
+      <Section title="Environmental Footprint">
+        {p.environmentalFootprint?.productCarbonFootprint ? (
+          <div className="space-y-4">
+            <div className="ey-card p-4 bg-blue-50">
+              <h3 className="font-semibold mb-2">Product Carbon Footprint (PCF)</h3>
+              <CardList
+                items={[
+                  { label: "Value", value: `${p.environmentalFootprint.productCarbonFootprint.value} ${p.environmentalFootprint.productCarbonFootprint.unit ?? ""}` },
+                  { label: "Scope", value: p.environmentalFootprint.productCarbonFootprint.scope },
+                  { label: "Calculation Method", value: p.environmentalFootprint.productCarbonFootprint.calculationMethod },
+                  { label: "Data Quality", value: p.environmentalFootprint.productCarbonFootprint.dataQuality },
+                ]}
+              />
+            </div>
+            <CardList
+              items={[
+                { label: "Water Footprint", value: p.environmentalFootprint.waterFootprint ? `${p.environmentalFootprint.waterFootprint} liters` : undefined },
+                { label: "Energy Consumption", value: p.environmentalFootprint.energyConsumption ? `${p.environmentalFootprint.energyConsumption} kWh` : undefined },
+                { 
+                  label: "Detailed Report", 
+                  value: p.environmentalFootprint.externalLink ? (
+                    <a className="ey-chip hover:underline" href={p.environmentalFootprint.externalLink} target="_blank" rel="noopener noreferrer">View Report</a>
+                  ) : undefined
+                },
+              ]}
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-500">No environmental footprint data available.</p>
+        )}
+      </Section>
+
+      {/* Circularity & Recyclability */}
+      <Section title="Circularity & Recyclability Information">
+        {p.circularity ? (
+          <div className="space-y-4">
+            <CardList
+              items={[
+                { label: "Recyclability Score", value: p.circularity.recyclabilityScore !== undefined ? `${p.circularity.recyclabilityScore}%` : undefined },
+                { label: "Recycled Content", value: p.circularity.recycledContent !== undefined ? `${p.circularity.recycledContent}%` : undefined },
+                { label: "Design for Disassembly", value: p.circularity.designForDisassembly ? "Yes" : "No" },
+                { label: "Circulatory Potential", value: p.circularity.circulatoryPotential },
+              ]}
+            />
+            
+            {p.circularity.recyclabilityInformation && (
+              <>
+                {p.circularity.recyclabilityInformation.recyclableMaterials && p.circularity.recyclabilityInformation.recyclableMaterials.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Recyclable Materials</h3>
+                    <table className="ey-table">
+                      <thead>
+                        <tr><th>Material</th><th>Percentage</th><th>Recycling Process</th></tr>
+                      </thead>
+                      <tbody>
+                        {p.circularity.recyclabilityInformation.recyclableMaterials.map((rm, i) => (
+                          <tr key={`rm-${i}`}>
+                            <td>{rm.material}</td>
+                            <td>{rm.percentage}%</td>
+                            <td>{rm.recyclingProcess ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                
+                {p.circularity.recyclabilityInformation.disposalGuidelines && (
+                  <div className="ey-card p-4 bg-green-50">
+                    <h3 className="font-semibold mb-2">Disposal Guidelines</h3>
+                    <p className="text-sm">{p.circularity.recyclabilityInformation.disposalGuidelines}</p>
+                  </div>
+                )}
+                
+                {p.circularity.recyclabilityInformation.eolInstructions && (
+                  <div className="ey-card p-4 bg-green-50">
+                    <h3 className="font-semibold mb-2">End-of-Life Instructions</h3>
+                    <p className="text-sm">{p.circularity.recyclabilityInformation.eolInstructions}</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {p.circularity.repairability && (
+              <div className="ey-card p-4 bg-amber-50">
+                <h3 className="font-semibold mb-2">Repairability</h3>
+                <CardList
+                  items={[
+                    { label: "Score", value: p.circularity.repairability.score !== undefined ? `${p.circularity.repairability.score}/10` : undefined },
+                    { label: "Assessment Method", value: p.circularity.repairability.assessmentMethod },
+                    { label: "Spare Parts Availability", value: p.circularity.repairability.spareParts?.availability },
+                    { label: "Spare Parts Period", value: p.circularity.repairability.spareParts?.period },
+                  ]}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-500">No circularity information available.</p>
+        )}
       </Section>
 
       {/* Documents */}
@@ -149,7 +419,7 @@ export default async function Page({ params, searchParams }: { params: { id: str
             </thead>
             <tbody>
               {p.documents.map((d, i) => (
-                <tr key={i}>
+                <tr key={`doc-${i}`}>
                   <td>{d.type}</td>
                   <td><a className="ey-chip" href={d.url} target="_blank">{d.url}</a></td>
                   <td>{d.mime ?? "—"}</td>
@@ -164,7 +434,7 @@ export default async function Page({ params, searchParams }: { params: { id: str
       </Section>
 
       {/* Compliance */}
-      <Section title="Compliance">
+      <Section title="Compliance Documentation">
         {p.compliance?.length ? (
           <table className="ey-table">
             <thead>
@@ -172,7 +442,7 @@ export default async function Page({ params, searchParams }: { params: { id: str
             </thead>
             <tbody>
               {p.compliance.map((c, i) => (
-                <tr key={i}>
+                <tr key={`comp-${i}`}>
                   <td><Pill tone="blue">{c.scheme}</Pill></td>
                   <td>{c.reference}</td>
                   <td>{fmtDate(c.validFrom)}</td>
@@ -183,6 +453,22 @@ export default async function Page({ params, searchParams }: { params: { id: str
           </table>
         ) : (
           <p className="text-sm text-neutral-500">No compliance entries.</p>
+        )}
+      </Section>
+
+      {/* Planning Insights */}
+      <Section title="Planning Insights">
+        {p.planningInsights && Object.keys(p.planningInsights).length > 0 ? (
+          <div className="space-y-2">
+            {Object.entries(p.planningInsights).map(([key, value]) => (
+              <div key={key} className="ey-card p-3">
+                <div className="text-xs text-neutral-500 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
+                <div className="text-sm">{value}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-500 italic">No planning insights available yet.</p>
         )}
       </Section>
 

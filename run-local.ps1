@@ -85,16 +85,26 @@ if ($Seed) {
 
 Write-Host "   Starting API server on http://localhost:8000..." -ForegroundColor Green
 
-# Start API in background
+# Get the current api directory path before popping
+$apiPath = (Get-Location).Path
+
+Pop-Location
+
+# Start API in background (from the api directory)
 $apiJob = Start-Job -ScriptBlock {
     param($apiPath)
     Set-Location $apiPath
     $env:ENVIRONMENT = "development"
     $env:DATABASE_URL = "sqlite+pysqlite:///./dpp.db"
-    uvicorn dpp_api.main:app --reload --host 0.0.0.0 --port 8000
-} -ArgumentList (Get-Location).Path
-
-Pop-Location
+    
+    # Use the venv's uvicorn if available, otherwise system uvicorn
+    $uvicornPath = Join-Path $apiPath ".venv/Scripts/uvicorn.exe"
+    if (Test-Path $uvicornPath) {
+        & $uvicornPath dpp_api.main:app --reload --host 0.0.0.0 --port 8000
+    } else {
+        uvicorn dpp_api.main:app --reload --host 0.0.0.0 --port 8000
+    }
+} -ArgumentList $apiPath
 
 # ============================================
 # 2. Setup Portal
