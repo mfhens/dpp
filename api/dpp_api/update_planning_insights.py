@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 import requests
@@ -13,6 +14,9 @@ from datetime import datetime, timezone
 
 from .models import SessionLocal, get_latest_dpp_version
 from .config import settings
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 
 def read_planning_csv(csv_path: Path) -> List[Dict]:
@@ -199,7 +203,7 @@ def update_dpp_planning_insights(
     with SessionLocal() as db:
         latest = get_latest_dpp_version(db, dpp_id)
         if not latest:
-            print(f"❌ DPP not found: {dpp_id}")
+            logger.error(f"DPP not found: {dpp_id}")
             return False
         
         # Clone payload and update planning insights
@@ -234,7 +238,7 @@ def update_dpp_planning_insights(
         db.add(new_version)
         db.commit()
         
-        print(f"✅ Updated {dpp_id} -> v{next_version}")
+        logger.info(f"✅ Updated {dpp_id} -> v{next_version}")
         return True
 
 
@@ -251,73 +255,78 @@ def update_all_planning_insights(csv_path: Optional[Path] = None, dry_run: bool 
         csv_path = Path(__file__).resolve().parents[1] / "drop" / "SSCP1__PRODLOCLOCFR_TEMPLATE.csv"
     
     if not csv_path.exists():
-        print(f"❌ CSV file not found: {csv_path}")
+        logger.error(f"CSV file not found: {csv_path}")
         return
     
-    print("📊 Reading planning insights from CSV...")
-    print(f"   File: {csv_path.name}")
+    logger.info("📊 Reading planning insights from CSV...")
+    logger.info(f"   File: {csv_path.name}")
     
     # Read and parse CSV
     records = read_planning_csv(csv_path)
-    print(f"   Records: {len(records)}")
+    logger.info(f"   Records: {len(records)}")
     
     # Map to planning insights structure
     product_insights = map_csv_to_planning_insights(records)
-    print(f"   Products: {len(product_insights)}")
-    print()
+    logger.info(f"   Products: {len(product_insights)}")
+    logger.info("")
     
     # Update each product's DPP
     updated_count = 0
     not_found_count = 0
     
     for product_id, insights in product_insights.items():
-        print(f"Processing {product_id}...")
+        logger.info(f"Processing {product_id}...")
         
         # Find DPP ID
         dpp_id = find_dpp_id_by_product(product_id)
         if not dpp_id:
-            print(f"  ⚠️  No DPP found for product: {product_id}")
+            logger.warning(f"  ⚠️  No DPP found for product: {product_id}")
             not_found_count += 1
             continue
         
-        print(f"  Found DPP: {dpp_id}")
+        logger.debug(f"  Found DPP: {dpp_id}")
         
         if dry_run:
-            print(f"  [DRY RUN] Would update with:")
-            print(f"    {json.dumps(insights, indent=4)}")
+            logger.info(f"  [DRY RUN] Would update with:")
+            logger.debug(f"    {json.dumps(insights, indent=4)}")
         else:
             # Update DPP
             success = update_dpp_planning_insights(dpp_id, insights)
             if success:
                 updated_count += 1
         
-        print()
+        logger.info("")
     
     # Summary
-    print("=" * 60)
-    print("📈 Planning Insights Update Summary")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("📈 Planning Insights Update Summary")
+    logger.info("=" * 60)
     if dry_run:
-        print(f"   DRY RUN - No changes made")
-    print(f"   Updated: {updated_count} DPPs")
-    print(f"   Not found: {not_found_count} products")
-    print()
+        logger.info("   DRY RUN - No changes made")
+    logger.info(f"   Updated: {updated_count} DPPs")
+    logger.info(f"   Not found: {not_found_count} products")
+    logger.info("")
 
 
 if __name__ == "__main__":
     import sys
     
+    # Setup console logging for standalone script
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    
     dry_run = "--dry-run" in sys.argv
     
-    print("🔄 DPP Planning Insights Update Tool")
-    print("=" * 60)
-    print()
+    logger.info("🔄 DPP Planning Insights Update Tool")
+    logger.info("=" * 60)
+    logger.info("")
     
     try:
         update_all_planning_insights(dry_run=dry_run)
-        print("✅ Update complete!")
+        logger.info("✅ Update complete!")
     except Exception as e:
-        print(f"❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"❌ Error: {e}")
+        logger.exception("Full traceback:")
         sys.exit(1)

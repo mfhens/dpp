@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import time
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -12,6 +13,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import decode as jwt_decode
 from jwt import PyJWKClient
 from jwt.exceptions import InvalidTokenError
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 # ---------- Configuration via env ----------
 OIDC_ISSUER_URL = os.getenv("OIDC_ISSUER_URL", "http://keycloak:8080/realms/dpp").rstrip("/")
@@ -144,9 +148,12 @@ def oidc_oauth2(
     method = request.method.upper()
     path_elems = [p for p in request.url.path.split("/") if p]
     access_tier = request.headers.get("x-access-tier", "public")
+    
+    logger.debug(f"🔐 Auth check: {method} {request.url.path}")
 
     if not credentials or not credentials.scheme.lower().startswith("bearer"):
         if ALLOW_ANON_PUBLIC and method == "GET":
+            logger.debug("   Anonymous access allowed for GET request")
             principal = _anonymous_principal()
             # OPA check for anonymous
             if not _opa_allow(
@@ -157,9 +164,12 @@ def oidc_oauth2(
                     "access_tier": access_tier,
                 }
             ):
+                logger.warning(f"   ❌ OPA denied anonymous access to {request.url.path}")
                 raise HTTPException(status_code=403, detail="Forbidden by policy")
+            logger.debug("   ✅ Anonymous access granted")
             return principal
 
+        logger.warning(f"   ❌ Missing bearer token for {method} {request.url.path}")
         raise HTTPException(
             status_code=401,
             detail="Missing bearer token",
@@ -167,15 +177,22 @@ def oidc_oauth2(
         )
 
     token = credentials.credentials
+    logger.debug("   Verifying JWT token...")
 
     # Verify JWT
-    claims = _decode_and_verify(token, OIDC_ISSUER_URL, OIDC_AUDIENCE if OIDC_AUDIENCE else None)
-    principal = Principal(
-        sub=str(claims.get("sub", "")),
-        realm=_get_realm_from_issuer(claims.get("iss", OIDC_ISSUER_URL)),
-        scopes=_extract_scopes(claims),
-        claims=claims,
-    )
+    try:
+        claims = _decode_and_verify(token, OIDC_ISSUER_URL, OIDC_AUDIENCE if OIDC_AUDIENCE else None)
+        principal = Principal(
+            sub=str(claims.get("sub", "")),
+            realm=_get_realm_from_issuer(claims.get("iss", OIDC_ISSUER_URL)),
+            scopes=_extract_scopes(claims),
+            claims=claims,
+        )
+        logger.debug(f"   ✅ Token verified for user: {principal.sub}")
+        logger.debug(f"   Scopes: {', '.join(principal.scopes[:5])}{'...' if len(principal.scopes) > 5 else ''}")
+    except HTTPException:
+        logger.warning(f"   ❌ Token verification failed")
+        raise
 
     # OPA enforcement
     if not _opa_allow(
@@ -187,6 +204,8 @@ def oidc_oauth2(
             # You can include more context such as tenant, dpp_id, etc.
         }
     ):
+        logger.warning(f"   ❌ OPA denied access for {principal.sub} to {request.url.path}")
         raise HTTPException(status_code=403, detail="Forbidden by policy")
-
+    
+    logger.debug("   ✅ Authorization successful")
     return principal

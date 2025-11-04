@@ -66,6 +66,14 @@ if (Get-Command uv -ErrorAction SilentlyContinue) {
 # Set environment for development mode
 $env:ENVIRONMENT = "development"
 $env:DATABASE_URL = "sqlite+pysqlite:///./dpp.db"
+$env:LOG_LEVEL = "DEBUG"
+$env:LOG_TO_FILE = "true"
+$env:LOG_FILE = "logs/dpp_api.log"
+
+# Create logs directory if it doesn't exist
+if (-not (Test-Path "logs")) {
+    New-Item -ItemType Directory -Path "logs" | Out-Null
+}
 
 # Seed database if requested
 if ($Seed) {
@@ -96,6 +104,9 @@ $apiJob = Start-Job -ScriptBlock {
     Set-Location $apiPath
     $env:ENVIRONMENT = "development"
     $env:DATABASE_URL = "sqlite+pysqlite:///./dpp.db"
+    $env:LOG_LEVEL = "DEBUG"
+    $env:LOG_TO_FILE = "true"
+    $env:LOG_FILE = "logs/dpp_api.log"
     
     # Use the venv's uvicorn if available, otherwise system uvicorn
     $uvicornPath = Join-Path $apiPath ".venv/Scripts/uvicorn.exe"
@@ -146,9 +157,14 @@ Write-Host "✅ Services Started!" -ForegroundColor Green
 Write-Host "===================" -ForegroundColor Green
 Write-Host "API:    http://localhost:8000" -ForegroundColor Cyan
 Write-Host "Docs:   http://localhost:8000/docs" -ForegroundColor Cyan
+Write-Host "Logs:   api/logs/dpp_api.log" -ForegroundColor Cyan
 if ($portalJob) {
     Write-Host "Portal: http://localhost:3000" -ForegroundColor Cyan
 }
+Write-Host ""
+Write-Host "📝 Logging Configuration:" -ForegroundColor Gray
+Write-Host "   Level: DEBUG" -ForegroundColor Gray
+Write-Host "   File:  api/logs/dpp_api.log" -ForegroundColor Gray
 Write-Host ""
 if (-not $Seed) {
     Write-Host "💡 Tip: Run with -Seed to load Lego Duck sample data" -ForegroundColor Gray

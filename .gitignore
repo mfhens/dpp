@@ -152,6 +152,10 @@ data/
 *.pem
 *.crt
 
+# Log files
+logs/
+*.log
+
 # Spyder project settings
 .spyderproject
 .spyproject

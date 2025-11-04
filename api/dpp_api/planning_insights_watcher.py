@@ -5,6 +5,7 @@ Monitors drop folder, processes new CSVs, and archives them with manifest.
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import time
 from datetime import datetime, timezone
@@ -14,6 +15,9 @@ import hashlib
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 from .update_planning_insights import (
     read_planning_csv,
@@ -92,55 +96,54 @@ def process_csv_file(csv_path: Path) -> CSVProcessingResult:
         # Calculate file hash
         result.file_hash = calculate_file_hash(csv_path)
         
-        print(f"📊 Processing {csv_path.name}...")
-        print(f"   Hash: {result.file_hash[:16]}...")
+        logger.info(f"📊 Processing {csv_path.name}...")
+        logger.debug(f"   Hash: {result.file_hash[:16]}...")
         
         # Read CSV
         records = read_planning_csv(csv_path)
         result.records_read = len(records)
-        print(f"   Records: {result.records_read}")
+        logger.info(f"   Records: {result.records_read}")
         
         # Map to planning insights
         product_insights = map_csv_to_planning_insights(records)
         result.products_found = len(product_insights)
-        print(f"   Products: {result.products_found}")
-        print()
+        logger.info(f"   Products: {result.products_found}")
+        logger.info("")
         
         # Update each product
         for product_id, insights in product_insights.items():
-            print(f"  Processing {product_id}...")
+            logger.info(f"  Processing {product_id}...")
             
             # Find DPP
             dpp_id = find_dpp_id_by_product(product_id)
             if not dpp_id:
-                print(f"    ⚠️  No DPP found")
+                logger.warning(f"    ⚠️  No DPP found")
                 result.dpps_not_found += 1
                 result.errors.append(f"Product {product_id}: DPP not found")
                 continue
             
-            print(f"    Found: {dpp_id}")
+            logger.debug(f"    Found: {dpp_id}")
             
             # Update DPP
             try:
                 success = update_dpp_planning_insights(dpp_id, insights)
                 if success:
                     result.dpps_updated += 1
-                    print(f"    ✅ Updated")
+                    logger.info(f"    ✅ Updated")
                 else:
                     result.errors.append(f"Product {product_id}: Update failed")
-                    print(f"    ❌ Failed")
+                    logger.error(f"    ❌ Failed")
             except Exception as e:
                 result.errors.append(f"Product {product_id}: {str(e)}")
-                print(f"    ❌ Error: {e}")
+                logger.error(f"    ❌ Error: {e}")
         
         # Mark as successful if we updated at least one DPP
         result.success = result.dpps_updated > 0
         
     except Exception as e:
         result.errors.append(f"Processing error: {str(e)}")
-        print(f"❌ Error processing file: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"❌ Error processing file: {e}")
+        logger.exception("Full traceback:")
     
     finally:
         result.complete()
@@ -173,7 +176,7 @@ def archive_csv_with_manifest(
     # Copy CSV to archive
     archived_csv = batch_folder / csv_path.name
     shutil.copy2(csv_path, archived_csv)
-    print(f"📁 Archived: {archived_csv}")
+    logger.info(f"📁 Archived: {archived_csv}")
     
     # Create manifest
     manifest = {
@@ -184,11 +187,11 @@ def archive_csv_with_manifest(
     manifest_path = batch_folder / "manifest.json"
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
-    print(f"📄 Manifest: {manifest_path}")
+    logger.info(f"📄 Manifest: {manifest_path}")
     
     # Delete original CSV
     csv_path.unlink()
-    print(f"🗑️  Deleted: {csv_path.name}")
+    logger.info(f"🗑️  Deleted: {csv_path.name}")
 
 
 def is_already_processed(csv_path: Path, drop_folder: Path) -> bool:
@@ -216,12 +219,13 @@ def is_already_processed(csv_path: Path, drop_folder: Path) -> bool:
                 manifest = json.load(f)
                 stored_hash = manifest.get("processing_result", {}).get("file_hash")
                 if stored_hash == current_hash:
-                    print(f"⚠️  File already processed: {csv_path.name}")
-                    print(f"   Hash: {current_hash[:16]}...")
-                    print(f"   Previous: {manifest_file.parent.name}")
+                    logger.warning(f"⚠️  File already processed: {csv_path.name}")
+                    logger.debug(f"   Hash: {current_hash[:16]}...")
+                    logger.debug(f"   Previous: {manifest_file.parent.name}")
                     return True
-        except Exception:
+        except Exception as e:
             # Ignore manifest read errors
+            logger.debug(f"Error reading manifest {manifest_file}: {e}")
             pass
     
     return False
@@ -260,7 +264,7 @@ class PlanningInsightsHandler(FileSystemEventHandler):
         if "processed" in file_path.parts:
             return
         
-        print(f"\n🔔 New file detected: {file_path.name}")
+        logger.info(f"\n🔔 New file detected: {file_path.name}")
         
         # Add to pending with timestamp
         self.pending_files[str(file_path)] = time.time()
@@ -280,7 +284,7 @@ class PlanningInsightsHandler(FileSystemEventHandler):
             
             # Check if file still exists
             if not file_path.exists():
-                print(f"⚠️  File disappeared: {file_path.name}")
+                logger.warning(f"⚠️  File disappeared: {file_path.name}")
                 continue
             
             # Check if already processed
@@ -292,53 +296,59 @@ class PlanningInsightsHandler(FileSystemEventHandler):
                 duplicate_folder = processed_folder / f"{timestamp}_duplicate_{file_path.stem}"
                 duplicate_folder.mkdir(exist_ok=True)
                 shutil.move(str(file_path), str(duplicate_folder / file_path.name))
-                print(f"   Moved to: {duplicate_folder}")
+                logger.info(f"   Moved to: {duplicate_folder}")
                 continue
             
             # Process the file
-            print(f"\n{'='*60}")
-            print(f"🚀 Processing: {file_path.name}")
-            print(f"{'='*60}\n")
+            logger.info(f"\n{'='*60}")
+            logger.info(f"🚀 Processing: {file_path.name}")
+            logger.info(f"{'='*60}\n")
             
             result = process_csv_file(file_path)
             
             # Archive with manifest
-            print(f"\n{'='*60}")
-            print("📦 Archiving...")
-            print(f"{'='*60}")
+            logger.info(f"\n{'='*60}")
+            logger.info("📦 Archiving...")
+            logger.info(f"{'='*60}")
             archive_csv_with_manifest(file_path, result, self.drop_folder)
             
             # Print summary
-            print(f"\n{'='*60}")
-            print("✅ Processing Complete")
-            print(f"{'='*60}")
-            print(f"Duration: {result.duration_seconds():.2f}s")
-            print(f"Success: {result.success}")
-            print(f"Updated: {result.dpps_updated} DPPs")
+            logger.info(f"\n{'='*60}")
+            logger.info("✅ Processing Complete")
+            logger.info(f"{'='*60}")
+            logger.info(f"Duration: {result.duration_seconds():.2f}s")
+            logger.info(f"Success: {result.success}")
+            logger.info(f"Updated: {result.dpps_updated} DPPs")
             if result.errors:
-                print(f"Errors: {len(result.errors)}")
+                logger.warning(f"Errors: {len(result.errors)}")
                 for error in result.errors[:3]:  # Show first 3 errors
-                    print(f"  - {error}")
-            print(f"{'='*60}\n")
+                    logger.warning(f"  - {error}")
+            logger.info(f"{'='*60}\n")
 
 
-def watch_folder(drop_folder: Path, debounce_seconds: float = 2.0) -> None:
+def watch_folder(drop_folder: Path, debounce_seconds: float = 2.0, run_forever: bool = True) -> Observer:
     """
     Watch folder for new CSV files and process them.
     
     Args:
         drop_folder: Path to folder to watch
         debounce_seconds: Seconds to wait after file creation before processing
+        run_forever: If True, blocks until interrupted. If False, returns observer for background use.
+    
+    Returns:
+        Observer instance (useful for background integration)
     """
     # Create drop folder if it doesn't exist
     drop_folder.mkdir(parents=True, exist_ok=True)
     
-    print("👁️  Planning Insights File Watcher")
-    print("="*60)
-    print(f"Watching: {drop_folder}")
-    print(f"Debounce: {debounce_seconds}s")
-    print("="*60)
-    print("\nPress Ctrl+C to stop\n")
+    logger.info("👁️  Planning Insights File Watcher")
+    logger.info("="*60)
+    logger.info(f"Watching: {drop_folder}")
+    logger.info(f"Debounce: {debounce_seconds}s")
+    logger.info("="*60)
+    
+    if run_forever:
+        logger.info("\nPress Ctrl+C to stop\n")
     
     # Create event handler and observer
     event_handler = PlanningInsightsHandler(drop_folder, debounce_seconds)
@@ -346,17 +356,32 @@ def watch_folder(drop_folder: Path, debounce_seconds: float = 2.0) -> None:
     observer.schedule(event_handler, str(drop_folder), recursive=False)
     observer.start()
     
-    try:
-        while True:
-            # Check for pending files to process
-            event_handler.process_pending_files()
-            time.sleep(0.5)
-    except KeyboardInterrupt:
-        print("\n\n🛑 Stopping watcher...")
-        observer.stop()
+    if run_forever:
+        try:
+            while True:
+                # Check for pending files to process
+                event_handler.process_pending_files()
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            logger.info("\n\n🛑 Stopping watcher...")
+            observer.stop()
+        
+        observer.join()
+        logger.info("✅ Watcher stopped")
+    else:
+        # Return observer for background use
+        # Caller needs to manage the event handler's process_pending_files() calls
+        import threading
+        
+        def background_processor():
+            while observer.is_alive():
+                event_handler.process_pending_files()
+                time.sleep(0.5)
+        
+        processor_thread = threading.Thread(target=background_processor, daemon=True)
+        processor_thread.start()
     
-    observer.join()
-    print("✅ Watcher stopped")
+    return observer
 
 
 if __name__ == "__main__":
