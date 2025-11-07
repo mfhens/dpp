@@ -92,8 +92,31 @@ MAX_DB_ID_LEN = 512  # current DB schema
 app = FastAPI(title="DPP API", version="0.2.0")
 
 # Load canonical schema for payload validation
-# Go up 2 levels: dpp_api/main.py -> dpp_api -> api -> project_root
-SCHEMA_PATH = Path(__file__).resolve().parents[2] / "schemas" / "core" / "1-0-0.schema.json"
+# Try multiple possible locations for the schema file
+def find_schema_path() -> Path:
+    """Find the schema file in various possible deployment locations."""
+    schema_relative = "schemas/core/1-0-0.schema.json"
+    
+    # Possible base directories to search
+    possible_bases = [
+        Path(__file__).resolve().parents[2],  # Local dev: dpp_api/main.py -> dpp_api -> api -> project_root
+        Path(__file__).resolve().parent.parent,  # Azure: /tmp/.../dpp_api/main.py -> /tmp/.../
+        Path.cwd(),  # Current working directory
+        Path("/home/site/wwwroot"),  # Azure App Service common path
+    ]
+    
+    for base in possible_bases:
+        schema_path = base / schema_relative
+        if schema_path.exists():
+            logger.info(f"📋 Found schema at: {schema_path}")
+            return schema_path
+    
+    # If not found, log all attempted paths
+    attempted = [str(base / schema_relative) for base in possible_bases]
+    logger.error(f"❌ Schema file not found. Attempted paths: {attempted}")
+    raise FileNotFoundError(f"Schema file not found. Attempted: {attempted}")
+
+SCHEMA_PATH = find_schema_path()
 with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
     CORE_SCHEMA = json.load(f)
 SCHEMA_VALIDATOR = Draft202012Validator(CORE_SCHEMA)
