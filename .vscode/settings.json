@@ -1,4 +1,0 @@
-{
-    "appService.defaultWebAppToDeploy": "/subscriptions/7c565bf8-af38-411f-8267-b7644531fc9a/resourceGroups/dpp-brickquack/providers/Microsoft.Web/sites/dpp-brickquack-api",
-    "appService.deploySubpath": "api"
-}
