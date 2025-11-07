@@ -71,6 +71,7 @@ def init_db(create_views: bool = True) -> None:
     """
     Create tables and optional helper view. Safe to call multiple times.
     Includes a short readiness loop so startup doesn't race the DB container.
+    Handles race conditions when multiple workers try to create tables simultaneously.
     """
     # Light readiness probe (useful when Compose says "started" but not yet accepting)
     for i in range(10):
@@ -81,7 +82,14 @@ def init_db(create_views: bool = True) -> None:
         except OperationalError:
             time.sleep(0.5 + 0.5 * i)
 
-    Base.metadata.create_all(ENGINE)
+    # Create tables with error handling for concurrent initialization
+    try:
+        Base.metadata.create_all(ENGINE, checkfirst=True)
+    except OperationalError as e:
+        # If tables already exist (e.g., created by another worker), that's fine
+        if "already exists" not in str(e).lower():
+            raise
+    
     if create_views:
         _ensure_views()
 

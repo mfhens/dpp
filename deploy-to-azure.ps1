@@ -49,6 +49,8 @@ try {
         "dpp_api",
         "main.py",
         "pyproject.toml",
+        "requirements.txt",
+        "runtime.txt",
         "startup.sh",
         "../schemas"
     )
@@ -75,25 +77,6 @@ try {
 [config]
 SCM_DO_BUILD_DURING_DEPLOYMENT=true
 "@ | Out-File -FilePath "$tempDir/.deployment" -Encoding utf8
-        
-        # Create web.config for startup
-        @"
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <system.webServer>
-    <handlers>
-      <add name="PythonHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified"/>
-    </handlers>
-    <httpPlatform processPath="D:\home\python\python.exe"
-                  arguments="-m uvicorn dpp_api.main:app --host 0.0.0.0 --port %HTTP_PLATFORM_PORT%"
-                  stdoutLogEnabled="true"
-                  stdoutLogFile="D:\home\LogFiles\python.log"
-                  startupTimeLimit="60"
-                  processesPerApplication="1">
-    </httpPlatform>
-  </system.webServer>
-</configuration>
-"@ | Out-File -FilePath "$tempDir/web.config" -Encoding utf8
         
         # Create ZIP
         Compress-Archive -Path "$tempDir/*" -DestinationPath $deployPackage -Force
