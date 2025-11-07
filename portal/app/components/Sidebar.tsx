@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart3, Paperclip, Settings } from "lucide-react";
+import { Home, BarChart3, Paperclip, Settings, Upload } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Landing", icon: Home },
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
+  { href: "/upload", label: "Upload", icon: Upload },
   { href: "/attachments", label: "Attachments", icon: Paperclip },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

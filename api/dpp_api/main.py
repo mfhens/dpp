@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 import threading
 
-from fastapi import FastAPI, Depends, HTTPException, Request, Header
+from fastapi import FastAPI, Depends, HTTPException, Request, Header, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 import json
@@ -496,3 +496,92 @@ def _extract_dpp_id(payload: dict) -> str:
         norm = dpp_id  # be permissive; schema already validated
 
     return norm
+
+
+# -----------------------------
+# File Upload API Endpoint
+# -----------------------------
+@app.post("/upload/planning-insights", response_model=dict)
+async def upload_planning_insights_csv(
+    file: UploadFile,
+    token=Depends(oidc_oauth2),
+):
+    """
+    Upload and process planning insights CSV file.
+    For Azure App Service deployment - replaces file watcher.
+    """
+    actor = getattr(token, "sub", "unknown")
+    logger.info(f"📤 CSV upload from actor: {actor}")
+    logger.info(f"   Filename: {file.filename}")
+    
+    if not file.filename.endswith('.csv'):
+        logger.warning(f"   ❌ Invalid file type: {file.filename}")
+        raise HTTPException(
+            status_code=400,
+            detail="File must be .csv format"
+        )
+    
+    try:
+        # Read file content
+        content = await file.read()
+        logger.info(f"   File size: {len(content)} bytes")
+        
+        # Save to temp location and process using existing logic
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
+        
+        try:
+            from .planning_insights_watcher import process_csv_file
+            result = process_csv_file(tmp_path)
+            
+            # Clean up temp file
+            tmp_path.unlink()
+            
+            if not result.success and result.errors:
+                error_msg = "; ".join(result.errors[:3])  # First 3 errors
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Processing failed: {error_msg}"
+                )
+            
+            logger.info(f"   ✅ Processed {result.dpps_updated} DPPs")
+            
+            # Audit the upload
+            try:
+                audit_append(
+                    "planning_insights.upload",
+                    {
+                        "filename": file.filename,
+                        "actor": actor,
+                        "dpps_updated": result.dpps_updated,
+                        "dpps_not_found": result.dpps_not_found
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"   Audit log failed: {e}")
+            
+            return {
+                "ok": True,
+                "filename": file.filename,
+                "dpps_updated": result.dpps_updated,
+                "dpps_not_found": result.dpps_not_found,
+                "records_read": result.records_read
+            }
+            
+        except Exception as e:
+            # Clean up temp file on error
+            if tmp_path.exists():
+                tmp_path.unlink()
+            raise
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"   ❌ Processing error: {e}")
+        logger.exception("Full traceback:")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process file: {str(e)}"
+        )

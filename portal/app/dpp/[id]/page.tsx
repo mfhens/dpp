@@ -7,7 +7,7 @@ type ApiDpp = { dpp_id: string; version: number; payload: unknown };
 
 // --- Fetcher ---
 async function getDpp(id: string, at?: string) {
-  const base = process.env.API_BASE || "http://localhost:8000";
+  const base = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
   const u = new URL(`${base}/dpp/${id}`);
   if (at) u.searchParams.set("at", at);
   const res = await fetch(u.toString(), { headers: { "x-access-tier": "public" }, cache: "no-store" });
@@ -85,7 +85,20 @@ type DppPayload = {
     designForDisassembly?: boolean;
     circulatoryPotential?: string;
   };
-  planningInsights?: Record<string, string>;
+  planningInsights?: Record<string, unknown>;
+  transportOptimization?: {
+    maintenanceSchedule?: string;
+    locations?: Array<{
+      locationFrom: string;
+      locationId: string;
+      adjustedTransportQuantity: number;
+      standardTransportQuantity: number;
+      previousTransportFootprint: number;
+      currentTransportFootprint: number;
+      quantitySavings?: string;
+      footprintChange?: string;
+    }>;
+  };
   profiles?: Record<string, { _profile?: { namespace: string; version: string }; [k: string]: unknown }>;
 };
 
@@ -456,16 +469,140 @@ export default async function Page({ params, searchParams }: { params: { id: str
         )}
       </Section>
 
+      {/* Transport Optimization */}
+      {(() => {
+        // Extract locations from planningInsights (as created by update_planning_insights.py)
+        const planningLocations = p.planningInsights?.locations;
+        const locations = p.transportOptimization?.locations || 
+          (planningLocations && Array.isArray(planningLocations) 
+            ? planningLocations as Array<{
+                locationFrom: string;
+                locationId: string;
+                adjustedTransportQuantity: number;
+                standardTransportQuantity: number;
+                previousTransportFootprint: number;
+                currentTransportFootprint: number;
+                quantitySavings?: string;
+                footprintChange?: string;
+              }>
+            : null);
+        
+        const maintenanceSchedule = p.transportOptimization?.maintenanceSchedule || 
+          (typeof p.planningInsights?.maintenanceSchedule === 'string' ? p.planningInsights.maintenanceSchedule : null);
+
+        if (!locations || locations.length === 0) return null;
+
+        return (
+          <Section title="Transport Optimization">
+            {maintenanceSchedule && (
+              <div className="ey-card p-4 bg-blue-50 mb-4">
+                <h3 className="font-semibold mb-2">Maintenance Schedule</h3>
+                <p className="text-sm">{maintenanceSchedule}</p>
+              </div>
+            )}
+            
+            {/* Summary insights */}
+            {(p.planningInsights?.transportOptimization || p.planningInsights?.carbonFootprintReduction) ? (
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                {typeof p.planningInsights.transportOptimization === 'string' ? (
+                  <div className="ey-card p-4 bg-green-50">
+                    <h3 className="font-semibold mb-2 text-green-900">💰 Transport Optimization</h3>
+                    <p className="text-sm text-green-800">{p.planningInsights.transportOptimization}</p>
+                  </div>
+                ) : null}
+                {typeof p.planningInsights.carbonFootprintReduction === 'string' ? (
+                  <div className="ey-card p-4 bg-blue-50">
+                    <h3 className="font-semibold mb-2 text-blue-900">🌱 Carbon Footprint</h3>
+                    <p className="text-sm text-blue-800">{p.planningInsights.carbonFootprintReduction}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            
+            <div className="overflow-x-auto">
+              <table className="ey-table">
+                <thead>
+                  <tr>
+                    <th>Location From</th>
+                    <th>Location ID</th>
+                    <th>Adjusted Transport Quantity</th>
+                    <th>Standard Transport Quantity</th>
+                    <th>Previous Transport Footprint</th>
+                    <th>Current Transport Footprint</th>
+                    <th>Quantity Savings</th>
+                    <th>Footprint Change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {locations.map((loc, i) => {
+                    const quantitySavingsValue = loc.quantitySavings || (
+                      loc.standardTransportQuantity > 0 
+                        ? `${(((loc.adjustedTransportQuantity - loc.standardTransportQuantity) / loc.standardTransportQuantity) * 100).toFixed(1)}%`
+                        : '-'
+                    );
+                    const footprintChangeValue = loc.footprintChange || (
+                      loc.previousTransportFootprint > 0
+                        ? `${(((loc.currentTransportFootprint - loc.previousTransportFootprint) / loc.previousTransportFootprint) * 100).toFixed(1)}%`
+                        : '-'
+                    );
+                    
+                    // Determine cell colors based on positive/negative values
+                    const quantitySavingsClass = quantitySavingsValue.startsWith('-') && quantitySavingsValue !== '-' 
+                      ? 'text-green-700 font-semibold' 
+                      : quantitySavingsValue !== '-' 
+                      ? 'text-red-700 font-semibold' 
+                      : '';
+                    const footprintChangeClass = footprintChangeValue.startsWith('-') && footprintChangeValue !== '-'
+                      ? 'text-green-700 font-semibold'
+                      : footprintChangeValue !== '-' && !footprintChangeValue.startsWith('-')
+                      ? 'text-red-700 font-semibold'
+                      : '';
+
+                    return (
+                      <tr key={`loc-${i}`}>
+                        <td><Pill tone="blue">{loc.locationFrom}</Pill></td>
+                        <td>{loc.locationId}</td>
+                        <td>{loc.adjustedTransportQuantity}</td>
+                        <td>{loc.standardTransportQuantity}</td>
+                        <td>{loc.previousTransportFootprint}</td>
+                        <td>{loc.currentTransportFootprint}</td>
+                        <td className={quantitySavingsClass}>{quantitySavingsValue}</td>
+                        <td className={footprintChangeClass}>{footprintChangeValue}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 text-sm text-neutral-600">
+              <p><strong>Key Insights:</strong></p>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li><span className="text-green-700">Negative percentages</span> indicate improvements (cost savings or footprint reduction)</li>
+                <li><span className="text-red-700">Positive percentages</span> indicate increases (higher costs or emissions)</li>
+              </ul>
+            </div>
+          </Section>
+        );
+      })()}
+
       {/* Planning Insights */}
       <Section title="Planning Insights">
         {p.planningInsights && Object.keys(p.planningInsights).length > 0 ? (
           <div className="space-y-2">
-            {Object.entries(p.planningInsights).map(([key, value]) => (
-              <div key={key} className="ey-card p-3">
-                <div className="text-xs text-neutral-500 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
-                <div className="text-sm">{value}</div>
-              </div>
-            ))}
+            {Object.entries(p.planningInsights)
+              .filter(([key]) => !['locations', 'maintenanceSchedule', 'transportOptimization', 'carbonFootprintReduction'].includes(key)) // Exclude fields shown in Transport Optimization
+              .map(([key, value]) => (
+                <div key={key} className="ey-card p-3">
+                  <div className="text-xs text-neutral-500 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
+                  <div className="text-sm">
+                    {typeof value === 'object' && value !== null ? (
+                      <pre className="text-xs overflow-auto bg-neutral-50 p-2 rounded">{JSON.stringify(value, null, 2)}</pre>
+                    ) : (
+                      <span className="break-words">{String(value)}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
           </div>
         ) : (
           <p className="text-sm text-neutral-500 italic">No planning insights available yet.</p>

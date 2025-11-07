@@ -164,8 +164,9 @@ package "API Service" {
 
 ### Prerequisites
 
-* **For local development**: Python (with uv or pip) and Node.js (with npm or pnpm)
+* **For local development**: Python 3.13+ (with uv) and Node.js (with npm or pnpm)
 * **For full deployment**: Docker Desktop or compatible engine
+* **For Azure deployment**: Azure CLI installed and configured
 * PlantUML preview plugin if you want to render the diagrams locally
 
 ### Quick Start
@@ -182,12 +183,22 @@ Run the API with SQLite and the Portal locally - no Docker required:
 .\run-local.ps1 -Seed
 ```
 
+You can also run just the API:
+```powershell
+# API only (from repo root)
+.\run-api-local.ps1
+
+# With custom port and debug logging
+.\run-api-local.ps1 -Port 8080 -LogLevel DEBUG
+```
+
 This gives you:
 - ✅ API on http://localhost:8000 (with SQLite database)
-- ✅ Portal on http://localhost:3000
+- ✅ Portal on http://localhost:3000 (if using run-local.ps1)
 - ✅ Optional Lego Duck sample data (-Seed flag)
 - ✅ Fast iteration: code changes reload instantly
 - ✅ Easy debugging in your IDE
+- ✅ File watcher for Planning Insights CSV
 - ⚠️ No authentication or external services
 
 **Option 2: Full Docker Deployment** (for testing complete system)
@@ -210,7 +221,35 @@ This gives you:
 - ✅ Authentication via Keycloak
 - ✅ Policy enforcement via OPA
 - ✅ Object storage, audit logs, etc.
+- ✅ File watcher for Planning Insights CSV
 - ⚠️ Slower startup and requires Docker
+
+**Option 3: Azure App Service Deployment** (for production/staging)
+
+Deploy the API and Portal to Azure for production workloads:
+
+```powershell
+# Deploy API
+cd infra
+.\deploy-api.ps1 -ResourceGroupName "dpp-api-rg" -EnvironmentName "prod"
+
+# Deploy Portal (update with API URL first)
+.\deploy-portal.ps1 -ResourceGroupName "dpp-portal-rg" -EnvironmentName "prod"
+```
+
+This gives you:
+- ✅ Scalable cloud infrastructure
+- ✅ Managed PostgreSQL database
+- ✅ Application Insights monitoring
+- ✅ HTTPS with TLS 1.2+
+- ✅ CSV upload via API endpoint (no file watcher)
+- ✅ Auto-scaling capabilities
+- ⚠️ Requires external services (Keycloak, MinIO, ImmuDB)
+
+See detailed deployment guides:
+- API: `api/README.md` or `api/QUICKSTART.md`
+- Portal: `portal/README.md` (if exists)
+- Azure deployment: `docs/API_DEPLOYMENT_SUMMARY.md`
 
 ### Secrets setup (Docker only)
 

@@ -86,8 +86,8 @@ def map_csv_to_planning_insights(records: List[Dict]) -> Dict[str, Dict]:
         location_insight = {
             "locationFrom": loc_from,
             "locationId": loc_id,
-            "adjustedTransportCost": adjusted_transport,
-            "standardTransportCost": transport,
+            "adjustedTransportQuantity": adjusted_transport,
+            "standardTransportQuantity": transport,
             "previousTransportFootprint": prev_footprint,
             "currentTransportFootprint": current_footprint,
         }
@@ -95,7 +95,7 @@ def map_csv_to_planning_insights(records: List[Dict]) -> Dict[str, Dict]:
         # Calculate savings/improvements
         if transport > 0 and adjusted_transport > 0:
             savings_pct = ((transport - adjusted_transport) / transport) * 100
-            location_insight["costSavings"] = f"{savings_pct:.1f}%"
+            location_insight["quantitySavings"] = f"{savings_pct:.1f}%"
         
         if prev_footprint > 0 and current_footprint > 0:
             footprint_change = ((current_footprint - prev_footprint) / prev_footprint) * 100
@@ -111,14 +111,14 @@ def map_csv_to_planning_insights(records: List[Dict]) -> Dict[str, Dict]:
         
         # Calculate total savings
         total_savings = sum(
-            loc.get("adjustedTransportCost", 0) - loc.get("standardTransportCost", 0)
+            loc.get("adjustedTransportQuantity", 0) - loc.get("standardTransportQuantity", 0)
             for loc in locations
-            if loc.get("adjustedTransportCost") and loc.get("standardTransportCost")
+            if loc.get("adjustedTransportQuantity") and loc.get("standardTransportQuantity")
         )
         
         if total_savings < 0:
             insights["transportOptimization"] = (
-                f"Optimized transport routes achieving {abs(total_savings):.0f} cost units reduction "
+                f"Optimized transport routes achieving {abs(total_savings):.0f} quantity units reduction "
                 f"across {len(locations)} distribution locations"
             )
         

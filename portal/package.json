@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "PORT=${PORT:-8080} node .next/standalone/server.js",
+    "start": "node server.js",
     "start:local": "next start -p 3000",
     "lint": "next lint"
   },
