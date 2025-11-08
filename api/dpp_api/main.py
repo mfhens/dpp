@@ -285,17 +285,34 @@ def list_dpps(
     db: Session = Depends(get_session),
     skip: int = 0,
     limit: int = 100,
+    product_id: Optional[str] = None,
 ):
     """
     List all DPPs in the database.
     Returns basic header information for each DPP.
+    
+    Args:
+        skip: Number of records to skip (pagination)
+        limit: Maximum number of records to return
+        product_id: Optional filter by product_id (case-insensitive search)
     """
     actor = getattr(token, "sub", "unknown")
     logger.info(f"📋 List DPPs request from actor: {actor}")
     logger.debug(f"   Skip: {skip}, Limit: {limit}")
+    if product_id:
+        logger.debug(f"   Filter by product_id: {product_id}")
     
     try:
-        dpps = db.query(Dpp).offset(skip).limit(limit).all()
+        query = db.query(Dpp)
+        
+        # Apply case-insensitive product_id filter if provided
+        if product_id:
+            # Normalize the search term
+            normalized_search = normalize_id(product_id)
+            # Use case-insensitive LIKE search on normalized product_id
+            query = query.filter(Dpp.product_id.ilike(f"%{normalized_search}%"))
+        
+        dpps = query.offset(skip).limit(limit).all()
         logger.info(f"   ✅ Found {len(dpps)} DPPs")
         
         result = [
@@ -310,7 +327,7 @@ def list_dpps(
         ]
         
         try:
-            audit_append("dpp.list", {"actor": actor, "count": len(dpps)})
+            audit_append("dpp.list", {"actor": actor, "count": len(dpps), "product_id_filter": product_id})
         except Exception as e:
             logger.warning(f"   Audit log failed: {e}")
         
@@ -319,6 +336,106 @@ def list_dpps(
     except Exception as e:
         logger.error(f"   ❌ Failed to list DPPs: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list DPPs: {str(e)}")
+
+
+@app.get("/dpp/search", response_model=list)
+def search_dpps(
+    q: str,
+    token=Depends(oidc_oauth2),
+    db: Session = Depends(get_session),
+    limit: int = 50,
+):
+    """
+    Search DPPs by product_id or model (case-insensitive).
+    
+    Args:
+        q: Search query string (searches product_id and model fields)
+        limit: Maximum number of results to return
+    
+    Returns:
+        List of matching DPPs with their latest version payloads
+    """
+    actor = getattr(token, "sub", "unknown")
+    logger.info(f"🔍 Search DPPs request from actor: {actor}")
+    logger.debug(f"   Query: {q}, Limit: {limit}")
+    
+    try:
+        # Normalize search query
+        normalized_query = normalize_id(q)
+        logger.debug(f"   Normalized query: {normalized_query}")
+        
+        # Search by product_id (case-insensitive)
+        dpps_by_product = (
+            db.query(Dpp)
+            .filter(Dpp.product_id.ilike(f"%{normalized_query}%"))
+            .limit(limit)
+            .all()
+        )
+        
+        results = []
+        seen_ids = set()
+        
+        # Add results from product_id search
+        for dpp in dpps_by_product:
+            if dpp.dpp_id not in seen_ids:
+                seen_ids.add(dpp.dpp_id)
+                latest = get_latest_dpp_version(db, dpp.dpp_id)
+                results.append({
+                    "id": dpp.dpp_id,
+                    "product_id": dpp.product_id,
+                    "dpp_url": dpp.dpp_url,
+                    "version": latest.version if latest else None,
+                    "match_field": "product_id",
+                })
+        
+        # Also search by model in payload (if we haven't hit limit)
+        if len(results) < limit:
+            remaining_limit = limit - len(results)
+            versions = (
+                db.query(DppVersion)
+                .order_by(DppVersion.dpp_id, DppVersion.version.desc())
+                .distinct(DppVersion.dpp_id)
+                .limit(remaining_limit * 2)  # Get more to filter
+                .all()
+            )
+            
+            for v in versions:
+                if v.dpp_id in seen_ids:
+                    continue
+                    
+                payload = v.payload or {}
+                product = payload.get("product", {})
+                model = product.get("model", "")
+                
+                # Case-insensitive model match
+                if model and normalized_query in model.lower():
+                    seen_ids.add(v.dpp_id)
+                    dpp = db.query(Dpp).filter(Dpp.dpp_id == v.dpp_id).first()
+                    if dpp:
+                        results.append({
+                            "id": dpp.dpp_id,
+                            "product_id": dpp.product_id,
+                            "dpp_url": dpp.dpp_url,
+                            "version": v.version,
+                            "match_field": "model",
+                            "model": model,
+                        })
+                        
+                        if len(results) >= limit:
+                            break
+        
+        logger.info(f"   ✅ Found {len(results)} matching DPPs")
+        
+        try:
+            audit_append("dpp.search", {"actor": actor, "query": q, "count": len(results)})
+        except Exception as e:
+            logger.warning(f"   Audit log failed: {e}")
+        
+        return results
+        
+    except Exception as e:
+        logger.error(f"   ❌ Search failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
 @app.post("/dpp", response_model=dict)
