@@ -8,13 +8,26 @@ echo "DPP Portal - Azure App Service Startup"
 echo "=========================================="
 echo "Current directory: $(pwd)"
 echo "Node version: $(node -v)"
+echo "NPM version: $(npm -v)"
 
-# Set default port if not provided by Azure
+# Azure sets PORT automatically, but provide fallback
 export PORT=${PORT:-8080}
 export HOSTNAME="0.0.0.0"
+export NODE_ENV="production"
 
 echo "Port: $PORT"
 echo "Hostname: $HOSTNAME"
+echo "Node Environment: $NODE_ENV"
+echo ""
+
+# Check if node_modules exists
+if [ ! -d "node_modules" ]; then
+    echo "⚠️  Warning: node_modules not found. Installing dependencies..."
+    npm ci --production
+    echo "✅ Dependencies installed"
+else
+    echo "✅ node_modules directory found"
+fi
 echo ""
 
 # Verify build exists
