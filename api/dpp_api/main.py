@@ -768,6 +768,8 @@ async def upload_planning_insights_csv(
     """
     Upload and process planning insights CSV file.
     For Azure App Service deployment - replaces file watcher.
+    
+    Note: Uses standard authentication. Works in DEMO_MODE for anonymous access.
     """
     actor = getattr(token, "sub", "unknown")
     logger.info(f"📤 CSV upload from actor: {actor}")
