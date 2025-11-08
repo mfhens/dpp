@@ -10,6 +10,8 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Set BUILD_ENV to enable standalone mode for Docker
+ENV BUILD_ENV=docker
 RUN npm run build
 
 FROM node:20-alpine AS runner

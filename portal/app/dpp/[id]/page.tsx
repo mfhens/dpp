@@ -494,30 +494,19 @@ export default async function Page({ params, searchParams }: { params: { id: str
 
         return (
           <Section title="Transport Optimization">
-            {maintenanceSchedule && (
-              <div className="ey-card p-4 bg-blue-50 mb-4">
-                <h3 className="font-semibold mb-2">Maintenance Schedule</h3>
-                <p className="text-sm">{maintenanceSchedule}</p>
-              </div>
-            )}
+            {/* Current Carbon Footprint */}
+            <div className="ey-card p-4 bg-neutral-50 mb-4">
+              <p className="text-base font-medium text-neutral-900">
+                Transport carbon footprint of the current duck = 6 tons
+              </p>
+            </div>
             
-            {/* Summary insights */}
-            {(p.planningInsights?.transportOptimization || p.planningInsights?.carbonFootprintReduction) ? (
-              <div className="grid md:grid-cols-2 gap-4 mb-4">
-                {typeof p.planningInsights.transportOptimization === 'string' ? (
-                  <div className="ey-card p-4 bg-green-50">
-                    <h3 className="font-semibold mb-2 text-green-900">💰 Transport Optimization</h3>
-                    <p className="text-sm text-green-800">{p.planningInsights.transportOptimization}</p>
-                  </div>
-                ) : null}
-                {typeof p.planningInsights.carbonFootprintReduction === 'string' ? (
-                  <div className="ey-card p-4 bg-blue-50">
-                    <h3 className="font-semibold mb-2 text-blue-900">🌱 Carbon Footprint</h3>
-                    <p className="text-sm text-blue-800">{p.planningInsights.carbonFootprintReduction}</p>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+            {/* Planner Suggestions Header */}
+            <div className="ey-card p-4 bg-blue-50 mb-4">
+              <p className="text-base text-blue-900">
+                Our planner suggests the following changes to align with Brickquack's sustainability planning strategy:
+              </p>
+            </div>
             
             <div className="overflow-x-auto">
               <table className="ey-table">
@@ -574,12 +563,12 @@ export default async function Page({ params, searchParams }: { params: { id: str
                 </tbody>
               </table>
             </div>
-            <div className="mt-4 text-sm text-neutral-600">
-              <p><strong>Key Insights:</strong></p>
-              <ul className="list-disc pl-5 mt-2 space-y-1">
-                <li><span className="text-green-700">Negative percentages</span> indicate improvements (cost savings or footprint reduction)</li>
-                <li><span className="text-red-700">Positive percentages</span> indicate increases (higher costs or emissions)</li>
-              </ul>
+            
+            {/* Carbon Footprint Reduction */}
+            <div className="ey-card p-4 bg-green-50 mt-4">
+              <p className="text-base font-medium text-green-900">
+                The transport carbon footprint of the next batch can be reduced by 2 tons.
+              </p>
             </div>
           </Section>
         );

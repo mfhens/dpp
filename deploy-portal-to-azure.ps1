@@ -3,7 +3,9 @@
 .SYNOPSIS
     Deploy DPP Portal to Azure App Service
 .DESCRIPTION
-    Deploys the Next.js portal to the specified Azure App Service using ZIP deployment
+    Deploys the Next.js portal to Azure App Service using ZIP deployment.
+    Excludes node_modules and .next to reduce deployment size and time.
+    Azure will rebuild the app during deployment.
 .PARAMETER ResourceGroup
     The Azure resource group name
 .PARAMETER AppName
@@ -20,144 +22,140 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+Write-Host ""
 Write-Host "🚀 Deploying DPP Portal to Azure App Service" -ForegroundColor Cyan
 Write-Host "   Resource Group: $ResourceGroup" -ForegroundColor Gray
 Write-Host "   App Name: $AppName" -ForegroundColor Gray
 Write-Host ""
 
 # Change to portal directory
-Push-Location "$PSScriptRoot/portal"
+$portalDir = Join-Path $PSScriptRoot "portal"
+Push-Location $portalDir
 
 try {
-    # Check if Node.js is installed
-    Write-Host "🔍 Checking Node.js installation..." -ForegroundColor Cyan
-    $nodeVersion = node --version 2>$null
-    if (-not $nodeVersion) {
-        Write-Host "❌ Node.js is not installed. Please install Node.js first." -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "✅ Node.js $nodeVersion found" -ForegroundColor Green
-    
     # Create deployment package
     $deployPackage = "deploy.zip"
+    $tempDir = Join-Path $PSScriptRoot "temp_portal_deploy"
     
     if (Test-Path $deployPackage) {
         Write-Host "🗑️  Removing old deployment package..." -ForegroundColor Yellow
         Remove-Item $deployPackage -Force
     }
     
-    Write-Host "📦 Creating deployment package..." -ForegroundColor Cyan
-    
-    # Files to include in deployment
-    $filesToZip = @(
-        "app",
-        "package.json",
-        "package-lock.json",
-        "next.config.js",
-        "tailwind.config.ts",
-        "tsconfig.json",
-        "postcss.config.js",
-        "next-env.d.ts",
-        "server.js",
-        "startup.sh",
-        ".env.production"
-    )
+    Write-Host "📦 Creating deployment package (excluding node_modules and .next)..." -ForegroundColor Cyan
     
     # Create temporary directory
-    $tempDir = New-Item -ItemType Directory -Path "$PSScriptRoot/temp_deploy_portal" -Force
+    if (Test-Path $tempDir) {
+        Remove-Item $tempDir -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
     
     try {
-        # Copy files to temp directory
-        foreach ($item in $filesToZip) {
-            $source = Join-Path $PSScriptRoot "portal" $item
+        # Files and directories to include (everything except node_modules and .next)
+        $itemsToInclude = @(
+            "app",
+            "package.json",
+            "package-lock.json",
+            "next.config.js",
+            "tailwind.config.ts",
+            "tsconfig.json",
+            "postcss.config.js",
+            "next-env.d.ts",
+            "server.js",
+            "startup.sh",
+            "web.config",
+            ".deployment",
+            "deploy.sh",
+            ".npmrc",
+            ".env.production"
+        )
+        
+        Write-Host "   Copying files..." -ForegroundColor Gray
+        foreach ($item in $itemsToInclude) {
+            $source = Join-Path $portalDir $item
             if (Test-Path $source) {
-                Copy-Item -Path $source -Destination $tempDir -Recurse -Force
+                $dest = Join-Path $tempDir $item
+                Copy-Item -Path $source -Destination $dest -Recurse -Force
+                Write-Host "   ✓ $item" -ForegroundColor DarkGray
             } else {
-                Write-Host "⚠️  Warning: $item not found, skipping..." -ForegroundColor Yellow
+                Write-Host "   ⚠ $item (not found, skipping)" -ForegroundColor Yellow
             }
         }
         
-        # Create .deployment file for Azure to build on deployment
-        @"
-[config]
-SCM_DO_BUILD_DURING_DEPLOYMENT=true
-"@ | Out-File -FilePath "$tempDir/.deployment" -Encoding utf8
+        Write-Host "   Creating ZIP archive..." -ForegroundColor Gray
+        Compress-Archive -Path "$tempDir\*" -DestinationPath $deployPackage -Force
         
-        # Create web.config for Azure
-        @"
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <system.webServer>
-    <handlers>
-      <add name="iisnode" path="server.js" verb="*" modules="iisnode"/>
-    </handlers>
-    <rewrite>
-      <rules>
-        <rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
-          <match url="^server.js\/debug[\/]?" />
-        </rule>
-        <rule name="StaticContent">
-          <action type="Rewrite" url="public{REQUEST_URI}"/>
-        </rule>
-        <rule name="DynamicContent">
-          <conditions>
-            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True"/>
-          </conditions>
-          <action type="Rewrite" url="server.js"/>
-        </rule>
-      </rules>
-    </rewrite>
-    <security>
-      <requestFiltering>
-        <hiddenSegments>
-          <remove segment="bin"/>
-        </hiddenSegments>
-      </requestFiltering>
-    </security>
-    <httpErrors existingResponse="PassThrough" />
-  </system.webServer>
-</configuration>
-"@ | Out-File -FilePath "$tempDir/web.config" -Encoding utf8
-        
-        # Create ZIP
-        Compress-Archive -Path "$tempDir/*" -DestinationPath $deployPackage -Force
-        
-        Write-Host "✅ Deployment package created: $deployPackage" -ForegroundColor Green
+        $zipSize = (Get-Item $deployPackage).Length / 1MB
+        $sizeMessage = "✅ Deployment package created: $deployPackage ({0:N2} MB)" -f $zipSize
+        Write-Host $sizeMessage -ForegroundColor Green
+        Write-Host "   (Excluded node_modules and .next - Azure will build them)" -ForegroundColor DarkGray
+        Write-Host ""
         
     } finally {
         # Clean up temp directory
-        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path $tempDir) {
+            Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
     
     # Check if logged in to Azure
     Write-Host "🔐 Checking Azure login..." -ForegroundColor Cyan
-    $account = az account show 2>$null
+    $account = az account show 2>$null | ConvertFrom-Json
     if (-not $account) {
         Write-Host "❌ Not logged in to Azure. Please run 'az login' first." -ForegroundColor Red
         exit 1
     }
-    Write-Host "✅ Logged in to Azure" -ForegroundColor Green
+    Write-Host "✅ Logged in as: $($account.user.name)" -ForegroundColor Green
+    Write-Host ""
     
     # Verify app exists
     Write-Host "🔍 Verifying App Service exists..." -ForegroundColor Cyan
-    $app = az webapp show --name $AppName --resource-group $ResourceGroup 2>$null
+    $app = az webapp show --name $AppName --resource-group $ResourceGroup 2>$null | ConvertFrom-Json
     if (-not $app) {
         Write-Host "❌ App Service '$AppName' not found in resource group '$ResourceGroup'" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "💡 Create the App Service first with:" -ForegroundColor Yellow
+        Write-Host "   .\configure-azure-portal.ps1" -ForegroundColor Gray
         exit 1
     }
-    Write-Host "✅ App Service found" -ForegroundColor Green
+    Write-Host "✅ App Service found: $($app.name)" -ForegroundColor Green
+    Write-Host ""
+    
+    # Configure app settings for build
+    Write-Host "⚙️  Configuring App Service settings..." -ForegroundColor Cyan
+    az webapp config appsettings set `
+        --resource-group $ResourceGroup `
+        --name $AppName `
+        --settings `
+            "SCM_DO_BUILD_DURING_DEPLOYMENT=true" `
+            "WEBSITE_NODE_DEFAULT_VERSION=20-lts" `
+            "NODE_ENV=production" `
+            "NPM_CONFIG_PRODUCTION=false" `
+        --output none
+    
+    # Set the startup command to use our startup script
+    az webapp config set `
+        --resource-group $ResourceGroup `
+        --name $AppName `
+        --startup-file "bash startup.sh" `
+        --output none
+    
+    Write-Host "✅ Settings configured" -ForegroundColor Green
+    Write-Host ""
     
     # Deploy to Azure
-    Write-Host ""
     Write-Host "🚀 Deploying to Azure App Service..." -ForegroundColor Cyan
-    Write-Host "   This may take a few minutes..." -ForegroundColor Gray
+    Write-Host "   Uploading package and building on Azure..." -ForegroundColor Gray
+    Write-Host "   This will take 2-3 minutes..." -ForegroundColor Gray
+    Write-Host ""
     
-    az webapp deploy `
+    $deployResult = az webapp deploy `
         --resource-group $ResourceGroup `
         --name $AppName `
         --src-path $deployPackage `
         --type zip `
-        --async false
+        --async false `
+        2>&1
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
@@ -170,16 +168,28 @@ SCM_DO_BUILD_DURING_DEPLOYMENT=true
         Write-Host "🌐 Your Portal is available at:" -ForegroundColor Cyan
         Write-Host "   https://$appUrl" -ForegroundColor White
         Write-Host ""
-        Write-Host "📊 View logs with:" -ForegroundColor Cyan
+        Write-Host "📝 Note: The app may take 1-2 minutes to fully start after deployment" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "📊 Monitor with:" -ForegroundColor Cyan
         Write-Host "   az webapp log tail --name $AppName --resource-group $ResourceGroup" -ForegroundColor Gray
+        Write-Host ""
         
     } else {
         Write-Host ""
         Write-Host "❌ Deployment failed!" -ForegroundColor Red
-        Write-Host "   Check logs with: az webapp log tail --name $AppName --resource-group $ResourceGroup" -ForegroundColor Yellow
+        Write-Host "   Error: $deployResult" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "📊 Check logs with:" -ForegroundColor Yellow
+        Write-Host "   az webapp log tail --name $AppName --resource-group $ResourceGroup" -ForegroundColor Gray
+        Write-Host ""
         exit 1
     }
     
+} catch {
+    Write-Host ""
+    Write-Host "❌ Error: $_" -ForegroundColor Red
+    Write-Host ""
+    exit 1
 } finally {
     Pop-Location
 }

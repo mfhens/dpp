@@ -3,39 +3,52 @@
 
 set -e
 
-echo "Starting DPP Portal on Azure App Service..."
+echo "=========================================="
+echo "DPP Portal - Azure App Service Startup"
+echo "=========================================="
 echo "Current directory: $(pwd)"
-echo "Contents: $(ls -la)"
+echo "Node version: $(node -v)"
 
 # Set default port if not provided by Azure
 export PORT=${PORT:-8080}
 export HOSTNAME="0.0.0.0"
 
 echo "Port: $PORT"
-echo "Checking for Next.js build..."
+echo "Hostname: $HOSTNAME"
+echo ""
 
-# Check if .next directory exists
+# Verify build exists
 if [ ! -d ".next" ]; then
-    echo "ERROR: .next directory not found. Running build..."
-    npm run build
+    echo "❌ ERROR: .next directory not found!"
+    echo "Build should have been completed during deployment."
+    exit 1
 fi
 
-# Check for standalone build
-if [ -f ".next/standalone/server.js" ]; then
-    echo "Using standalone build..."
-    # Copy static assets to standalone directory
-    if [ -d ".next/static" ]; then
-        echo "Copying static assets..."
-        cp -r .next/static .next/standalone/.next/
-    fi
-    if [ -d "public" ]; then
-        echo "Copying public assets..."
-        cp -r public .next/standalone/
-    fi
-    cd .next/standalone
-    node server.js
+echo "✅ Build directory found"
+echo ""
+
+# Verify CSS files exist
+echo "🎨 Checking CSS files..."
+if [ -d ".next/static/css" ]; then
+    echo "✅ CSS files found:"
+    ls -lh .next/static/css/ || echo "   (Directory exists but may be empty)"
 else
-    echo "No standalone build found. Using next start..."
-    npx next start -p $PORT -H $HOSTNAME
+    echo "⚠️  Warning: No CSS directory found!"
 fi
+
+# List all static assets
+echo ""
+echo "📂 Static assets:"
+if [ -d ".next/static" ]; then
+    ls -lh .next/static/ || echo "   (Directory exists but may be empty)"
+fi
+echo ""
+
+# Start the Next.js server
+echo "🚀 Starting Next.js server..."
+echo "   Using: node server.js"
+echo "=========================================="
+echo ""
+
+exec node server.js
 
