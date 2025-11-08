@@ -7,7 +7,8 @@ type ApiDpp = { dpp_id: string; version: number; payload: unknown };
 
 // --- Fetcher ---
 async function getDpp(id: string, at?: string) {
-  const base = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  // Use server-side env vars (available at runtime) or NEXT_PUBLIC vars (available at build time)
+  const base = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
   const u = new URL(`${base}/dpp/${id}`);
   if (at) u.searchParams.set("at", at);
   const res = await fetch(u.toString(), { headers: { "x-access-tier": "public" }, cache: "no-store" });
