@@ -13,7 +13,7 @@ This document illustrates the complete Digital Product Passport hierarchy for th
 │  FINISHED PRODUCT (Item-level DPP)                              │
 │  Lego Duck - LEGO-DUCK-001                                      │
 │  Serial: SN-2025-LD-001234                                      │
-│  DPP: did:web:dpp.brickquack.com:product:lego-duck:item-...    │
+│  DPP: did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-...    │
 │  GTIN: 04260012345838                                           │
 └─────────────┬───────────────────────────────────────────────────┘
               │
@@ -56,25 +56,25 @@ This document illustrates the complete Digital Product Passport hierarchy for th
 
 | Material Code | Description | DPP ID | Origin | Supplier |
 |---------------|-------------|--------|--------|----------|
-| **ABS-TH-001** | ABS Resin from Thailand | `did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001` | Thailand | PolyFormix Global (1000569) |
-| **ABS-KW-001** | ABS Resin from Kuwait | `did:web:dpp.brickquack.com:raw:abs-kw:batch-2025-10-002` | Kuwait | PolyFormix Global (1000569) |
-| **CB-LUX-001** | Carbon Black from Luxembourg | `did:web:dpp.brickquack.com:raw:cb-lux:batch-2025-10-003` | Luxembourg | PetroNovo Materials (1000570) |
-| **PVC-BE-001** | PVC Packaging from Belgium | `did:web:dpp.brickquack.com:raw:pvc-be:batch-2025-10-004` | Belgium | PackTech Belgium (1000571) |
-| **PAPER-ZA-001** | Paper Packaging from South Africa | `did:web:dpp.brickquack.com:raw:paper-za:batch-2025-10-005` | South Africa | AfriPack Solutions (1000572) |
+| **ABS-TH-001** | ABS Resin from Thailand | `did:web:dpp-brickquack.azurewebsites.net:raw:abs-th:batch-2025-10-001` | Thailand | PolyFormix Global (1000569) |
+| **ABS-KW-001** | ABS Resin from Kuwait | `did:web:dpp-brickquack.azurewebsites.net:raw:abs-kw:batch-2025-10-002` | Kuwait | PolyFormix Global (1000569) |
+| **CB-LUX-001** | Carbon Black from Luxembourg | `did:web:dpp-brickquack.azurewebsites.net:raw:cb-lux:batch-2025-10-003` | Luxembourg | PetroNovo Materials (1000570) |
+| **PVC-BE-001** | PVC Packaging from Belgium | `did:web:dpp-brickquack.azurewebsites.net:raw:pvc-be:batch-2025-10-004` | Belgium | PackTech Belgium (1000571) |
+| **PAPER-ZA-001** | Paper Packaging from South Africa | `did:web:dpp-brickquack.azurewebsites.net:raw:paper-za:batch-2025-10-005` | South Africa | AfriPack Solutions (1000572) |
 
 ### 2. Component Level (Batch Granularity)
 
 | Component Code | Description | DPP ID | Contains |
 |----------------|-------------|--------|----------|
-| **RED-BRICK-001** | Red Plate Brick (2x4 studs) | `did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001` | 5.0g ABS-TH + 5.0g ABS-KW + 0.5g CB-LUX |
-| **YELLOW-BRICK-001** | Yellow Plate Brick (2x3 studs) | `did:web:dpp.brickquack.com:component:yellow-brick:batch-2025-Q4-001` | 4.5g ABS-TH + 4.5g ABS-KW + 0.3g CB-LUX |
-| **DUCK-EYE-001** | Duck Eye Component | `did:web:dpp.brickquack.com:component:duck-eye:batch-2025-Q4-001` | 1.0g ABS-TH + 0.5g CB-LUX |
+| **RED-BRICK-001** | Red Plate Brick (2x4 studs) | `did:web:dpp-brickquack.azurewebsites.net:component:red-brick:batch-2025-Q4-001` | 5.0g ABS-TH + 5.0g ABS-KW + 0.5g CB-LUX |
+| **YELLOW-BRICK-001** | Yellow Plate Brick (2x3 studs) | `did:web:dpp-brickquack.azurewebsites.net:component:yellow-brick:batch-2025-Q4-001` | 4.5g ABS-TH + 4.5g ABS-KW + 0.3g CB-LUX |
+| **DUCK-EYE-001** | Duck Eye Component | `did:web:dpp-brickquack.azurewebsites.net:component:duck-eye:batch-2025-Q4-001` | 1.0g ABS-TH + 0.5g CB-LUX |
 
 ### 3. Finished Product Level (Item Granularity)
 
 | Product Code | Description | DPP ID | Serial Number | Contains |
 |--------------|-------------|--------|---------------|----------|
-| **LEGO-DUCK-001** | Lego Duck - Complete Set | `did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234` | SN-2025-LD-001234 | 6× RED-BRICK + 10× YELLOW-BRICK + 2× DUCK-EYE + 1× PVC-BE + 1× PAPER-ZA |
+| **LEGO-DUCK-001** | Lego Duck - Complete Set | `did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234` | SN-2025-LD-001234 | 6× RED-BRICK + 10× YELLOW-BRICK + 2× DUCK-EYE + 1× PVC-BE + 1× PAPER-ZA |
 
 ---
 
@@ -115,13 +115,13 @@ Each DPP record contains explicit links to its component DPPs in the `profiles.c
         "material": "RED-BRICK-001",
         "quantity": 6,
         "unit": "pc",
-        "dpp": "did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001"
+        "dpp": "did:web:dpp-brickquack.azurewebsites.net:component:red-brick:batch-2025-Q4-001"
       },
       {
         "material": "YELLOW-BRICK-001",
         "quantity": 10,
         "unit": "pc",
-        "dpp": "did:web:dpp.brickquack.com:component:yellow-brick:batch-2025-Q4-001"
+        "dpp": "did:web:dpp-brickquack.azurewebsites.net:component:yellow-brick:batch-2025-Q4-001"
       }
       // ... etc
     ]
@@ -143,13 +143,13 @@ Each DPP record contains explicit links to its component DPPs in the `profiles.c
         "material": "ABS-TH-001",
         "quantity": 5.0,
         "unit": "g",
-        "dpp": "did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001"
+        "dpp": "did:web:dpp-brickquack.azurewebsites.net:raw:abs-th:batch-2025-10-001"
       },
       {
         "material": "ABS-KW-001",
         "quantity": 5.0,
         "unit": "g",
-        "dpp": "did:web:dpp.brickquack.com:raw:abs-kw:batch-2025-10-002"
+        "dpp": "did:web:dpp-brickquack.azurewebsites.net:raw:abs-kw:batch-2025-10-002"
       }
       // ... etc
     ]
@@ -163,7 +163,7 @@ Each DPP record contains explicit links to its component DPPs in the `profiles.c
 
 ### Query 1: "What raw materials are in this finished duck?"
 
-**Input**: `did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234`
+**Input**: `did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234`
 
 **Process**:
 1. Retrieve Lego Duck DPP
@@ -180,7 +180,7 @@ Each DPP record contains explicit links to its component DPPs in the `profiles.c
 
 ### Query 2: "Where did the Carbon Black come from?"
 
-**Input**: `did:web:dpp.brickquack.com:raw:cb-lux:batch-2025-10-003`
+**Input**: `did:web:dpp-brickquack.azurewebsites.net:raw:cb-lux:batch-2025-10-003`
 
 **Process**:
 1. Retrieve CB-LUX DPP
@@ -195,7 +195,7 @@ Each DPP record contains explicit links to its component DPPs in the `profiles.c
 
 ### Query 3: "What is the carbon footprint of this duck?"
 
-**Input**: `did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234`
+**Input**: `did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234`
 
 **Direct**:
 - Duck PCF: 0.45 kg CO2e
@@ -321,7 +321,7 @@ docker-compose up -d
 ```sql
 -- Get the Lego Duck DPP
 SELECT * FROM dpp 
-WHERE dpp_id = 'did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234';
+WHERE dpp_id = 'did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234';
 
 -- Get all component DPPs for the duck
 SELECT 
@@ -329,7 +329,7 @@ SELECT
     payload->>'product'->>'model' as model,
     payload->'provenance'->>'manufactureDate' as manufacture_date
 FROM dpp_version 
-WHERE dpp_id LIKE '%brickquack.com:component:%';
+WHERE dpp_id LIKE '%dpp-brickquack.azurewebsites.net:component:%';
 
 -- Get carbon footprint hierarchy
 SELECT 
@@ -337,7 +337,7 @@ SELECT
     payload->'product'->>'model' as model,
     payload->'environmentalFootprint'->'productCarbonFootprint'->>'value' as pcf
 FROM dpp_version
-WHERE dpp_id LIKE '%brickquack.com%'
+WHERE dpp_id LIKE '%dpp-brickquack.azurewebsites.net%'
 ORDER BY pcf DESC;
 ```
 
@@ -345,13 +345,13 @@ ORDER BY pcf DESC;
 
 ```bash
 # Get finished product DPP
-curl http://api:8000/dpp/did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234
+curl http://api:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234
 
 # Get component DPP
-curl http://api:8000/dpp/did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001
+curl http://api:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:component:red-brick:batch-2025-Q4-001
 
 # Get raw material DPP
-curl http://api:8000/dpp/did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001
+curl http://api:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:raw:abs-th:batch-2025-10-001
 ```
 
 ---

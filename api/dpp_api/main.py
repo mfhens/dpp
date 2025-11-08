@@ -143,6 +143,25 @@ class DPPVersionCreate(BaseModel):
 # -----------------------------
 # Startup
 # -----------------------------
+# Health check endpoint
+@app.get("/health")
+def health_check():
+    """Health check endpoint for monitoring and load balancers."""
+    return {"status": "healthy", "service": "dpp-api", "version": app.version}
+
+
+@app.get("/")
+def root():
+    """Root endpoint with API information."""
+    return {
+        "service": "DPP API",
+        "version": app.version,
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+
+# -----------------------------
 # Global observer for file watcher
 _file_watcher_observer = None
 
@@ -260,6 +279,48 @@ def _validate_payload(payload: dict) -> None:
 # -----------------------------
 # Endpoints
 # -----------------------------
+@app.get("/dpp", response_model=list)
+def list_dpps(
+    token=Depends(oidc_oauth2),
+    db: Session = Depends(get_session),
+    skip: int = 0,
+    limit: int = 100,
+):
+    """
+    List all DPPs in the database.
+    Returns basic header information for each DPP.
+    """
+    actor = getattr(token, "sub", "unknown")
+    logger.info(f"📋 List DPPs request from actor: {actor}")
+    logger.debug(f"   Skip: {skip}, Limit: {limit}")
+    
+    try:
+        dpps = db.query(Dpp).offset(skip).limit(limit).all()
+        logger.info(f"   ✅ Found {len(dpps)} DPPs")
+        
+        result = [
+            {
+                "id": dpp.dpp_id,
+                "product_id": dpp.product_id,
+                "dpp_url": dpp.dpp_url,
+                "created_at": dpp.created_at.isoformat() if dpp.created_at else None,
+                "updated_at": dpp.updated_at.isoformat() if dpp.updated_at else None,
+            }
+            for dpp in dpps
+        ]
+        
+        try:
+            audit_append("dpp.list", {"actor": actor, "count": len(dpps)})
+        except Exception as e:
+            logger.warning(f"   Audit log failed: {e}")
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"   ❌ Failed to list DPPs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list DPPs: {str(e)}")
+
+
 @app.post("/dpp", response_model=dict)
 def create_dpp(
     cmd: DPPCreate,
@@ -389,6 +450,64 @@ def resolve_dpp(
     
     logger.info(f"   ✅ Found DPP version {v.version}")
     return {"dpp_id": dpp_id, "version": v.version, "payload": v.payload}
+
+
+@app.delete("/dpp/{dpp_id}", response_model=dict)
+def delete_dpp(
+    dpp_id: str,
+    token=Depends(oidc_oauth2),
+    db: Session = Depends(get_session),
+):
+    """
+    Delete a DPP and all its versions from the database.
+    This is a destructive operation and cannot be undone.
+    """
+    actor = getattr(token, "sub", "unknown")
+    logger.info(f"🗑️  Delete DPP request: {dpp_id}")
+    logger.debug(f"   Actor: {actor}")
+    
+    try:
+        # Check if DPP exists
+        dpp = db.query(Dpp).filter(Dpp.dpp_id == dpp_id).first()
+        if not dpp:
+            logger.warning(f"   ❌ DPP not found: {dpp_id}")
+            raise HTTPException(status_code=404, detail="DPP not found")
+        
+        # Delete all versions first (due to foreign key constraint)
+        versions_deleted = db.query(DppVersion).filter(DppVersion.dpp_id == dpp_id).delete()
+        logger.debug(f"   Deleted {versions_deleted} versions")
+        
+        # Delete the header
+        db.delete(dpp)
+        db.commit()
+        
+        logger.info(f"   ✅ Deleted DPP: {dpp_id}")
+        
+        # Audit the deletion
+        try:
+            audit_append(
+                "dpp.delete",
+                {
+                    "dpp_id": dpp_id,
+                    "actor": actor,
+                    "versions_deleted": versions_deleted,
+                }
+            )
+        except Exception as e:
+            logger.warning(f"   Audit log failed: {e}")
+        
+        return {
+            "ok": True,
+            "dpp_id": dpp_id,
+            "versions_deleted": versions_deleted,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"   ❌ Failed to delete DPP: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete DPP: {str(e)}")
 
 
 @app.post("/dpp/{dpp_id}/versions", response_model=dict)

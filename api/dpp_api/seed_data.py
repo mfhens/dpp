@@ -153,7 +153,7 @@ if __name__ == "__main__":
         seed_lego_duck_data(force=force)
         print()
         print("💡 You can now query DPPs via API:")
-        print("   curl http://localhost:8000/dpp/did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234")
+        print("   curl http://localhost:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234")
     except Exception as e:
         print(f"❌ Error seeding database: {e}")
         import traceback

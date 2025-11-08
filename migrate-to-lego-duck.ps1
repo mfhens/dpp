@@ -155,13 +155,13 @@ try {
 Write-Host "`n🔗 Test these DPP endpoints when API is ready:" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "# Finished Product (Lego Duck)" -ForegroundColor Gray
-Write-Host 'curl http://localhost:8000/dpp/did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234' -ForegroundColor White
+Write-Host 'curl http://localhost:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234' -ForegroundColor White
 Write-Host ""
 Write-Host "# Component (Red Brick)" -ForegroundColor Gray
-Write-Host 'curl http://localhost:8000/dpp/did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001' -ForegroundColor White
+Write-Host 'curl http://localhost:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:component:red-brick:batch-2025-Q4-001' -ForegroundColor White
 Write-Host ""
 Write-Host "# Raw Material (ABS from Thailand)" -ForegroundColor Gray
-Write-Host 'curl http://localhost:8000/dpp/did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001' -ForegroundColor White
+Write-Host 'curl http://localhost:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:raw:abs-th:batch-2025-10-001' -ForegroundColor White
 Write-Host ""
 
 Write-Host "`n✅ Migration Complete!" -ForegroundColor Green

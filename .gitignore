@@ -257,3 +257,5 @@ antenv/
 .deployment
 startup.sh
 web.config
+portal/deploy.zip
+api/deploy.zip

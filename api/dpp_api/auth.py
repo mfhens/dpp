@@ -22,6 +22,7 @@ OIDC_ISSUER_URL = os.getenv("OIDC_ISSUER_URL", "http://keycloak:8080/realms/dpp"
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "dpp-api")  # if empty, audience is not verified
 OIDC_ALGS = [a.strip() for a in os.getenv("OIDC_ALGS", "RS256,PS256,ES256").split(",") if a.strip()]
 ALLOW_ANON_PUBLIC = os.getenv("ALLOW_ANON_PUBLIC", "1").lower() in {"1", "true", "yes"}
+DEMO_MODE = os.getenv("DEMO_MODE", "0").lower() in {"1", "true", "yes"}  # Allow anonymous POST for demos
 OPA_URL = os.getenv("OPA_URL")  # example: http://opa:8181/v1/data/dpp/allow
 
 HTTP_BEARER = HTTPBearer(auto_error=False)
@@ -152,6 +153,25 @@ def oidc_oauth2(
     logger.debug(f"🔐 Auth check: {method} {request.url.path}")
 
     if not credentials or not credentials.scheme.lower().startswith("bearer"):
+        # Demo mode: Allow anonymous access for all methods
+        if DEMO_MODE:
+            logger.debug("   ⚠️  DEMO MODE: Anonymous access allowed")
+            principal = _anonymous_principal()
+            # OPA check for anonymous
+            if not _opa_allow(
+                {
+                    "user": {"sub": principal.sub, "realm": principal.realm, "scopes": principal.scopes},
+                    "method": method,
+                    "path": path_elems,
+                    "access_tier": access_tier,
+                }
+            ):
+                logger.warning(f"   ❌ OPA denied anonymous access to {request.url.path}")
+                raise HTTPException(status_code=403, detail="Forbidden by policy")
+            logger.debug("   ✅ Anonymous access granted (DEMO MODE)")
+            return principal
+        
+        # Production: Only allow anonymous GET
         if ALLOW_ANON_PUBLIC and method == "GET":
             logger.debug("   Anonymous access allowed for GET request")
             principal = _anonymous_principal()

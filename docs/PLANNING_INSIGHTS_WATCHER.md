@@ -185,7 +185,7 @@ The watcher outputs detailed logs:
    Products: 1
 
   Processing LEGO-DUCK...
-    Found: did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234
+    Found: did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234
     ✅ Updated
 
 ============================================================
