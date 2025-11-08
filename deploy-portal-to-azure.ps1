@@ -52,22 +52,23 @@ try {
     
     try {
         # Files and directories to include (everything except node_modules and .next)
+        # Note: server.js and startup.sh have enhanced error handling and diagnostics
         $itemsToInclude = @(
-            "app",
-            "package.json",
-            "package-lock.json",
-            "next.config.js",
-            "tailwind.config.ts",
-            "tsconfig.json",
-            "postcss.config.js",
-            "next-env.d.ts",
-            "server.js",
-            "startup.sh",
-            "web.config",
-            ".deployment",
-            "deploy.sh",
-            ".npmrc",
-            ".env.production"
+            "app",                      # Next.js app directory
+            "package.json",             # Dependencies (includes Next.js with Node 18-20 compatibility)
+            "package-lock.json",        # Exact dependency versions
+            "next.config.js",           # Next.js configuration
+            "tailwind.config.ts",       # Tailwind CSS configuration
+            "tsconfig.json",            # TypeScript configuration
+            "postcss.config.js",        # PostCSS configuration
+            "next-env.d.ts",            # Next.js type definitions
+            "server.js",                # Custom server with enhanced diagnostics
+            "startup.sh",               # Azure startup script with dependency checks
+            "web.config",               # IIS configuration (if needed)
+            ".deployment",              # Azure deployment configuration
+            "deploy.sh",                # Deployment helper script
+            ".npmrc",                   # NPM configuration
+            ".env.production"           # Production environment variables
         )
         
         Write-Host "   Copying files..." -ForegroundColor Gray
@@ -133,14 +134,18 @@ try {
             "NPM_CONFIG_PRODUCTION=false" `
         --output none
     
+    Write-Host "   ✓ App settings configured" -ForegroundColor Gray
+    
     # Set the startup command to use our startup script
+    Write-Host "   Setting startup command..." -ForegroundColor Gray
     az webapp config set `
         --resource-group $ResourceGroup `
         --name $AppName `
         --startup-file "bash startup.sh" `
         --output none
     
-    Write-Host "✅ Settings configured" -ForegroundColor Green
+    Write-Host "✅ Settings and startup command configured" -ForegroundColor Green
+    Write-Host "   Startup: bash startup.sh" -ForegroundColor DarkGray
     Write-Host ""
     
     # Deploy to Azure
