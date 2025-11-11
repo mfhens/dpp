@@ -106,7 +106,15 @@ try {
         Write-Host "   ℹ️  No existing data found" -ForegroundColor Gray
     }
 } catch {
-    Write-Host "   ⚠️  Could not retrieve existing DPPs (may not exist)" -ForegroundColor Yellow
+    # Check if it's a 405 Method Not Allowed error
+    $errorMessage = $_.ToString()
+    if ($errorMessage -match "Method Not Allowed" -or $errorMessage -match "405") {
+        Write-Host "   ℹ️  List endpoint not available - skipping deletion step" -ForegroundColor Gray
+        Write-Host "   Note: Existing data will remain in database" -ForegroundColor Yellow
+    } else {
+        Write-Host "   ⚠️  Could not retrieve existing DPPs" -ForegroundColor Yellow
+        Write-Host "   Error: $errorMessage" -ForegroundColor Gray
+    }
 }
 
 Write-Host ""

@@ -575,30 +575,6 @@ export default async function Page({ params, searchParams }: { params: { id: str
         );
       })()}
 
-      {/* Planning Insights */}
-      <Section title="Planning Insights">
-        {p.planningInsights && Object.keys(p.planningInsights).length > 0 ? (
-          <div className="space-y-2">
-            {Object.entries(p.planningInsights)
-              .filter(([key]) => !['locations', 'maintenanceSchedule', 'transportOptimization', 'carbonFootprintReduction'].includes(key)) // Exclude fields shown in Transport Optimization
-              .map(([key, value]) => (
-                <div key={key} className="ey-card p-3">
-                  <div className="text-xs text-neutral-500 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
-                  <div className="text-sm">
-                    {typeof value === 'object' && value !== null ? (
-                      <pre className="text-xs overflow-auto bg-neutral-50 p-2 rounded">{JSON.stringify(value, null, 2)}</pre>
-                    ) : (
-                      <span className="break-words">{String(value)}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-          </div>
-        ) : (
-          <p className="text-sm text-neutral-500 italic">No planning insights available yet.</p>
-        )}
-      </Section>
-
       {/* Raw JSON */}
       <details className="ey-card p-4">
         <summary className="cursor-pointer font-medium">Show raw payload</summary>
