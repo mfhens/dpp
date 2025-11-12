@@ -122,6 +122,33 @@ def map_csv_to_planning_insights(records: List[Dict]) -> Dict[str, Dict]:
                 f"across {len(locations)} distribution locations"
             )
         
+        # Calculate transport carbon footprint totals
+        total_current_transport_footprint = sum(
+            loc.get("currentTransportFootprint", 0)
+            for loc in locations
+        )
+        
+        total_previous_transport_footprint = sum(
+            loc.get("previousTransportFootprint", 0)
+            for loc in locations
+        )
+        
+        # Add transport carbon footprint to insights
+        insights["transportCarbonFootprint"] = {
+            "current": round(total_current_transport_footprint, 2),
+            "previous": round(total_previous_transport_footprint, 2),
+            "unit": "kg CO2e",
+            "scope": "transport-distribution"
+        }
+        
+        # Calculate absolute and percentage change
+        footprint_absolute_change = total_current_transport_footprint - total_previous_transport_footprint
+        
+        if total_previous_transport_footprint > 0:
+            footprint_percentage_change = (footprint_absolute_change / total_previous_transport_footprint) * 100
+            insights["transportCarbonFootprint"]["change"] = round(footprint_percentage_change, 1)
+            insights["transportCarbonFootprint"]["changeAbsolute"] = round(footprint_absolute_change, 2)
+        
         # Calculate average footprint change
         footprint_changes = [
             ((loc.get("currentTransportFootprint", 0) - loc.get("previousTransportFootprint", 0)) 
@@ -135,12 +162,12 @@ def map_csv_to_planning_insights(records: List[Dict]) -> Dict[str, Dict]:
             if avg_change < 0:
                 insights["carbonFootprintReduction"] = (
                     f"Transport carbon footprint reduced by {abs(avg_change):.1f}% "
-                    f"through route optimization"
+                    f"through route optimization (saving {abs(footprint_absolute_change):.1f} kg CO2e)"
                 )
             elif avg_change > 0:
                 insights["carbonFootprintReduction"] = (
                     f"Transport carbon footprint increased by {avg_change:.1f}% "
-                    f"(new routes or demand increase)"
+                    f"(+{footprint_absolute_change:.1f} kg CO2e - new routes or demand increase)"
                 )
     
     return product_insights

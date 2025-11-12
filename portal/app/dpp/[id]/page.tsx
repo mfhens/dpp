@@ -227,19 +227,127 @@ export default async function Page({ params, searchParams }: { params: { id: str
               <tr><th>Material Name</th><th>Type</th><th>Percentage</th><th>Origin</th><th>Certifications</th></tr>
             </thead>
             <tbody>
-              {p.product.identifiers.materials.map((mat, i) => (
-                <tr key={`mat-${i}`}>
-                  <td>{mat.name}</td>
-                  <td><Pill>{mat.type}</Pill></td>
-                  <td>{mat.percentage}%</td>
-                  <td>{mat.origin ?? "—"}</td>
-                  <td>{mat.certifications?.join(", ") ?? "—"}</td>
-                </tr>
-              ))}
+              {p.product.identifiers.materials.map((mat, i) => {
+                // Try to find matching DPP in BOM
+                let dppLink: string | null = null;
+                const bomProfile = p.profiles?.["component.bom"] || p.profiles?.["product.bom"];
+                const components = bomProfile?.components as Array<{
+                  material: string;
+                  dpp?: string;
+                }> | undefined;
+                
+                if (components) {
+                  // Normalize material name for matching (remove spaces, hyphens, parentheses)
+                  const normalizeForMatching = (name: string) => 
+                    name.toLowerCase().replace(/[\s\-\(\)]/g, '');
+                  
+                  const materialNameNormalized = normalizeForMatching(mat.name);
+                  const matchedComponent = components.find(comp => {
+                    const compNameNormalized = normalizeForMatching(comp.material);
+                    
+                    // Direct match after normalization
+                    if (materialNameNormalized.includes(compNameNormalized) || 
+                        compNameNormalized.includes(materialNameNormalized)) {
+                      return true;
+                    }
+                    
+                    // Additional fuzzy matching for common patterns
+                    const materialNameLower = mat.name.toLowerCase();
+                    const compNameLower = comp.material.toLowerCase();
+                    return (materialNameLower.includes('abs') && compNameLower.includes('abs')) ||
+                           (materialNameLower.includes('carbon') && compNameLower.includes('cb')) ||
+                           (materialNameLower.includes('pvc') && compNameLower.includes('pvc')) ||
+                           (materialNameLower.includes('paper') && compNameLower.includes('pb'));
+                  });
+                  
+                  if (matchedComponent?.dpp) {
+                    dppLink = `/dpp/${encodeURIComponent(matchedComponent.dpp)}`;
+                  }
+                }
+
+                return (
+                  <tr key={`mat-${i}`}>
+                    <td>
+                      {dppLink ? (
+                        <a href={dppLink} className="text-blue-600 hover:text-blue-800 hover:underline font-medium inline-flex items-center gap-1">
+                          {mat.name} 🔗
+                        </a>
+                      ) : (
+                        mat.name
+                      )}
+                    </td>
+                    <td><Pill>{mat.type}</Pill></td>
+                    <td>{mat.percentage}%</td>
+                    <td>{mat.origin ?? "—"}</td>
+                    <td>{mat.certifications?.join(", ") ?? "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+          <p className="text-xs text-neutral-500 mt-2">💡 Click on linked materials to view their detailed DPPs</p>
         </Section>
       )}
+
+      {/* Bill of Materials */}
+      {p.profiles?.["component.bom"]?.components || p.profiles?.["product.bom"]?.components ? (
+        <Section title="Bill of Materials (BOM)">
+          {(() => {
+            const bomProfile = p.profiles["component.bom"] || p.profiles["product.bom"];
+            const components = bomProfile?.components as Array<{
+              material: string;
+              quantity: number;
+              unit: string;
+              dpp?: string;
+            }> | undefined;
+
+            if (!components || components.length === 0) return null;
+
+            return (
+              <div className="space-y-2">
+                <p className="text-sm text-neutral-600 mb-3">
+                  This product is composed of the following components. Click on a component to view its detailed DPP.
+                </p>
+                <table className="ey-table">
+                  <thead>
+                    <tr><th>Component</th><th>Quantity</th><th>Unit</th><th>DPP Reference</th></tr>
+                  </thead>
+                  <tbody>
+                    {components.map((comp, i) => {
+                      // Extract the DPP ID from the full DID
+                      const dppId = comp.dpp;
+                      const dppLink = dppId ? `/dpp/${encodeURIComponent(dppId)}` : null;
+                      
+                      return (
+                        <tr key={`comp-${i}`}>
+                          <td>
+                            <Pill tone="amber">{comp.material}</Pill>
+                          </td>
+                          <td className="font-medium">{comp.quantity}</td>
+                          <td>{comp.unit}</td>
+                          <td>
+                            {dppLink ? (
+                              <a 
+                                href={dppLink} 
+                                className="text-blue-600 hover:text-blue-800 hover:underline font-medium flex items-center gap-1"
+                                title={`View DPP for ${comp.material}`}
+                              >
+                                View DPP 🔗
+                              </a>
+                            ) : (
+                              <span className="text-neutral-400">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </Section>
+      ) : null}
 
       {/* Provenance */}
       <Section title="Provenance">
@@ -325,6 +433,43 @@ export default async function Page({ params, searchParams }: { params: { id: str
       <Section title="Environmental Footprint">
         {p.environmentalFootprint?.productCarbonFootprint ? (
           <div className="space-y-4">
+            {/* Lifecycle Carbon Footprint Summary (if transport data available) */}
+            {(() => {
+              const transportCF = p.planningInsights?.transportCarbonFootprint as { current?: number; unit?: string } | undefined;
+              const productPCF = p.environmentalFootprint.productCarbonFootprint.value || 0;
+              const transportCurrent = transportCF?.current || 0;
+              
+              if (transportCurrent > 0) {
+                const total = productPCF + transportCurrent;
+                return (
+                  <div className="ey-card p-4 bg-purple-50 border-2 border-purple-200">
+                    <h3 className="font-semibold mb-3 text-purple-900">Lifecycle Carbon Footprint</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                      <div>
+                        <p className="text-xs text-purple-700 uppercase tracking-wide">Manufacturing</p>
+                        <p className="text-2xl font-bold text-purple-900">{productPCF}</p>
+                        <p className="text-xs text-purple-600">{p.environmentalFootprint.productCarbonFootprint.unit || 'kg CO2e'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-purple-700 uppercase tracking-wide">Transport</p>
+                        <p className="text-2xl font-bold text-purple-900">{transportCurrent}</p>
+                        <p className="text-xs text-purple-600">{transportCF?.unit || 'kg CO2e'}</p>
+                      </div>
+                      <div className="border-l-2 border-purple-300 pl-4">
+                        <p className="text-xs text-purple-700 uppercase tracking-wide">Total Lifecycle</p>
+                        <p className="text-3xl font-bold text-purple-900">{total.toFixed(2)}</p>
+                        <p className="text-xs text-purple-600">{p.environmentalFootprint.productCarbonFootprint.unit || 'kg CO2e'}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-purple-700">
+                      This includes manufacturing ({Math.round((productPCF/total)*100)}%) and distribution transport ({Math.round((transportCurrent/total)*100)}%) emissions.
+                    </p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            
             <div className="ey-card p-4 bg-blue-50">
               <h3 className="font-semibold mb-2">Product Carbon Footprint (PCF)</h3>
               <CardList
@@ -493,14 +638,45 @@ export default async function Page({ params, searchParams }: { params: { id: str
 
         if (!locations || locations.length === 0) return null;
 
+        // Extract transport carbon footprint data from planningInsights
+        const transportCarbonFootprint = p.planningInsights?.transportCarbonFootprint as {
+          current?: number;
+          previous?: number;
+          unit?: string;
+          scope?: string;
+          change?: number;
+          changeAbsolute?: number;
+        } | undefined;
+
         return (
           <Section title="Transport Optimization">
             {/* Current Carbon Footprint */}
-            <div className="ey-card p-4 bg-neutral-50 mb-4">
-              <p className="text-base font-medium text-neutral-900">
-                Transport carbon footprint of the current duck = 6 tons
-              </p>
-            </div>
+            {transportCarbonFootprint && (
+              <div className="ey-card p-4 bg-neutral-50 mb-4">
+                <h3 className="font-semibold mb-2">Transport Carbon Footprint</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-neutral-600">Current</p>
+                    <p className="text-xl font-semibold text-neutral-900">
+                      {transportCarbonFootprint.current} {transportCarbonFootprint.unit || 'kg CO2e'}
+                    </p>
+                    <p className="text-xs text-neutral-500">Scope: {transportCarbonFootprint.scope || 'transport-distribution'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-neutral-600">Previous</p>
+                    <p className="text-xl font-semibold text-neutral-900">
+                      {transportCarbonFootprint.previous} {transportCarbonFootprint.unit || 'kg CO2e'}
+                    </p>
+                    {transportCarbonFootprint.change !== undefined && (
+                      <p className={`text-sm font-medium ${transportCarbonFootprint.change < 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        {transportCarbonFootprint.change > 0 ? '+' : ''}{transportCarbonFootprint.change}% 
+                        ({transportCarbonFootprint.changeAbsolute !== undefined && transportCarbonFootprint.changeAbsolute > 0 ? '+' : ''}{transportCarbonFootprint.changeAbsolute} {transportCarbonFootprint.unit || 'kg CO2e'})
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Planner Suggestions Header */}
             <div className="ey-card p-4 bg-blue-50 mb-4">
@@ -565,12 +741,17 @@ export default async function Page({ params, searchParams }: { params: { id: str
               </table>
             </div>
             
-            {/* Carbon Footprint Reduction */}
-            <div className="ey-card p-4 bg-green-50 mt-4">
-              <p className="text-base font-medium text-green-900">
-                The transport carbon footprint of the next batch can be reduced by 2 tons.
-              </p>
-            </div>
+            {/* Carbon Footprint Reduction Summary */}
+            {transportCarbonFootprint && transportCarbonFootprint.changeAbsolute !== undefined && (
+              <div className={`ey-card p-4 mt-4 ${transportCarbonFootprint.changeAbsolute < 0 ? 'bg-green-50' : 'bg-amber-50'}`}>
+                <p className={`text-base font-medium ${transportCarbonFootprint.changeAbsolute < 0 ? 'text-green-900' : 'text-amber-900'}`}>
+                  {transportCarbonFootprint.changeAbsolute < 0 
+                    ? `✓ The transport carbon footprint has been reduced by ${Math.abs(transportCarbonFootprint.changeAbsolute)} ${transportCarbonFootprint.unit || 'kg CO2e'} (${Math.abs(transportCarbonFootprint.change || 0)}%) through optimized routing.`
+                    : `⚠ The transport carbon footprint has increased by ${transportCarbonFootprint.changeAbsolute} ${transportCarbonFootprint.unit || 'kg CO2e'} (+${transportCarbonFootprint.change || 0}%) due to new routes or demand changes.`
+                  }
+                </p>
+              </div>
+            )}
           </Section>
         );
       })()}
