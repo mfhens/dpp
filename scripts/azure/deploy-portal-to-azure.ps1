@@ -132,6 +132,7 @@ try {
             "WEBSITE_NODE_DEFAULT_VERSION=20-lts" `
             "NODE_ENV=production" `
             "NPM_CONFIG_PRODUCTION=false" `
+            "API_BASE=https://dpp-brickquack-api.azurewebsites.net" `
         --output none
     
     Write-Host "   ✓ App settings configured" -ForegroundColor Gray

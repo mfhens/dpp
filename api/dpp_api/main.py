@@ -145,6 +145,7 @@ class DPPVersionCreate(BaseModel):
 # -----------------------------
 # Health check endpoint
 @app.get("/health")
+@app.head("/health")
 def health_check():
     """Health check endpoint for monitoring and load balancers."""
     return {"status": "healthy", "service": "dpp-api", "version": app.version}

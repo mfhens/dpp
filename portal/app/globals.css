@@ -115,6 +115,7 @@
     border: 1px solid var(--ey-border);
     color: #222;
     gap: 6px;
+    word-break: break-word;
   }
   .ey-pill--yellow {
     background: color-mix(in srgb, var(--ey-yellow) 18%, white);
@@ -139,13 +140,13 @@
 
   /* Key-value grid */
   .ey-kv {
-    @apply grid grid-cols-3 gap-2 py-1;
+    @apply grid grid-cols-1 sm:grid-cols-3 gap-2 py-1;
   }
   .ey-kv__label {
     @apply text-sm text-neutral-500;
   }
   .ey-kv__value {
-    @apply col-span-2 text-sm break-words;
+    @apply sm:col-span-2 text-sm break-words;
   }
 
   /* Link chip used for documents */
@@ -153,6 +154,7 @@
     @apply inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs;
     border-color: var(--ey-border);
     background: var(--ey-surface);
+    word-break: break-all;
   }
 }
 
@@ -167,21 +169,39 @@
     overflow: hidden;
     border: 1px solid var(--ey-border);
     border-radius: 12px;
+    font-size: 0.875rem; /* text-sm */
   }
   .ey-table thead th {
     text-align: left;
     background: var(--ey-surface-2);
     color: var(--ey-black);
     font-weight: 600;
-    padding: 10px 12px;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--ey-border);
+    font-size: 0.8125rem; /* slightly smaller on mobile */
   }
   .ey-table tbody td {
-    padding: 10px 12px;
+    padding: 8px 10px;
     border-top: 1px solid var(--ey-border);
+    word-break: break-word;
   }
   .ey-table tbody tr:hover {
     background: #fafafa;
+  }
+  
+  /* Mobile: allow horizontal scroll for wide tables */
+  @media (max-width: 768px) {
+    .ey-table {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .ey-table thead th,
+    .ey-table tbody td {
+      padding: 6px 8px;
+      font-size: 0.75rem; /* smaller text on mobile */
+      white-space: nowrap;
+    }
   }
 }
 

@@ -30,11 +30,15 @@ Write-Host "   Resource Group: $ResourceGroup" -ForegroundColor Gray
 Write-Host "   App Name: $AppName" -ForegroundColor Gray
 Write-Host ""
 
+# Get project root (scripts/azure -> scripts -> root)
+$projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$apiDir = Join-Path $projectRoot "api"
+
 # Change to API directory
-Push-Location "$PSScriptRoot/api"
+Push-Location $apiDir
 
 try {
-    # Create deployment package
+    # Create deployment package in the API directory
     $deployPackage = "deploy.zip"
     
     if (Test-Path $deployPackage) {
@@ -51,25 +55,29 @@ try {
         "pyproject.toml",
         "requirements.txt",
         "runtime.txt",
-        "startup.sh",
-        "../schemas"
+        "startup.sh"
     )
     
     # Create temporary directory
-    $tempDir = New-Item -ItemType Directory -Path "$PSScriptRoot/temp_deploy" -Force
+    $tempDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "dpp_deploy_$(Get-Date -Format 'yyyyMMddHHmmss')") -Force
     
     try {
-        # Copy files to temp directory
+        # Copy API files to temp directory
         foreach ($item in $filesToZip) {
-            $source = Join-Path $PSScriptRoot "api" $item
-            if ($item -eq "../schemas") {
-                $source = Join-Path $PSScriptRoot "schemas"
+            $source = Join-Path $apiDir $item
+            if (Test-Path $source) {
                 Copy-Item -Path $source -Destination $tempDir -Recurse -Force
             } else {
-                if (Test-Path $source) {
-                    Copy-Item -Path $source -Destination $tempDir -Recurse -Force
-                }
+                Write-Host "⚠️  Warning: $item not found at $source" -ForegroundColor Yellow
             }
+        }
+        
+        # Copy schemas from project root
+        $schemasSource = Join-Path $projectRoot "schemas"
+        if (Test-Path $schemasSource) {
+            Copy-Item -Path $schemasSource -Destination $tempDir -Recurse -Force
+        } else {
+            Write-Host "⚠️  Warning: schemas directory not found at $schemasSource" -ForegroundColor Yellow
         }
         
         # Create .deployment file for Azure

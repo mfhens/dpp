@@ -7,8 +7,8 @@ type ApiDpp = { dpp_id: string; version: number; payload: unknown };
 
 // --- Fetcher ---
 async function getDpp(id: string, at?: string) {
-  // Hardcoded API URL for Azure deployment
-  const base = "https://dpp-brickquack-api.azurewebsites.net";
+  // Use API_BASE from environment, fallback to Azure deployment URL
+  const base = process.env.API_BASE || "https://dpp-brickquack-api.azurewebsites.net";
   const u = new URL(`${base}/dpp/${id}`);
   if (at) u.searchParams.set("at", at);
   const res = await fetch(u.toString(), { headers: { "x-access-tier": "public" }, cache: "no-store" });

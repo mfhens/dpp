@@ -32,7 +32,8 @@ export default function UploadPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      // Use API_BASE or NEXT_PUBLIC_API_URL from environment, fallback to Azure deployment URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'https://dpp-brickquack-api.azurewebsites.net';
       const response = await fetch(`${apiUrl}/upload/planning-insights`, {
         method: 'POST',
         body: formData,
