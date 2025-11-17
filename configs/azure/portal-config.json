@@ -1,0 +1,93 @@
+{
+  "kind": "app,linux",
+  "deployment": {
+    "branch": null,
+    "repoUrl": null,
+    "type": "Microsoft.Web/sites/sourcecontrols"
+  },
+  "location": "Sweden Central",
+  "tags": null,
+  "runtime": {
+    "alwaysOn": false,
+    "linuxFxVersion": "NODE|20-lts",
+    "minTlsVersion": "1.2",
+    "http20Enabled": false,
+    "pythonVersion": "",
+    "ftpsState": "FtpsOnly"
+  },
+  "connectionStrings": [],
+  "appName": "dpp-brickquack",
+  "sku": {
+    "family": null,
+    "capacity": null,
+    "tier": null,
+    "size": null,
+    "name": null
+  },
+  "httpsOnly": false,
+  "resourceGroup": "dpp-brickquack",
+  "defaultHostName": "dpp-brickquack.azurewebsites.net",
+  "appSettings": [
+    {
+      "slotSetting": false,
+      "value": "true",
+      "name": "SCM_DO_BUILD_DURING_DEPLOYMENT"
+    },
+    {
+      "slotSetting": false,
+      "value": "InstrumentationKey=0aaf738d-2c47-4dcd-9b48-1b3352cd8d08;IngestionEndpoint=https://swedencentral-0.in.applicationinsights.azure.com/;LiveEndpoint=https://swedencentral.livediagnostics.monitor.azure.com/;ApplicationId=5b9f6c0e-fdf8-4434-8345-421707abbdf6",
+      "name": "APPLICATIONINSIGHTS_CONNECTION_STRING"
+    },
+    {
+      "slotSetting": false,
+      "value": "~3",
+      "name": "ApplicationInsightsAgent_EXTENSION_VERSION"
+    },
+    {
+      "slotSetting": false,
+      "value": "true",
+      "name": "APPLICATIONINSIGHTSAGENT_EXTENSION_ENABLED"
+    },
+    {
+      "slotSetting": false,
+      "value": "7",
+      "name": "WEBSITE_HTTPLOGGING_RETENTION_DAYS"
+    },
+    {
+      "slotSetting": false,
+      "value": "https://dpp-brickquack-api.azurewebsites.net",
+      "name": "NEXT_PUBLIC_API_URL"
+    },
+    {
+      "slotSetting": false,
+      "value": "https://dpp-brickquack-api.azurewebsites.net",
+      "name": "NEXT_PUBLIC_API_BASE"
+    },
+    {
+      "slotSetting": false,
+      "value": "https://dpp-brickquack-api.azurewebsites.net",
+      "name": "API_URL"
+    },
+    {
+      "slotSetting": false,
+      "value": "production",
+      "name": "NODE_ENV"
+    },
+    {
+      "slotSetting": false,
+      "value": "0",
+      "name": "WEBSITE_RUN_FROM_PACKAGE"
+    },
+    {
+      "slotSetting": false,
+      "value": "https://dpp-brickquack-api.azurewebsites.net",
+      "name": "API_BASE"
+    }
+  ],
+  "enabledHostNames": [
+    "dpp-brickquack.azurewebsites.net",
+    "dpp-brickquack.scm.azurewebsites.net"
+  ],
+  "subscription": "Azure subscription 1",
+  "exportDate": "2025-11-17 13:52:43"
+}
