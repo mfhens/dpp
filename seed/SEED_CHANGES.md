@@ -46,41 +46,41 @@ Copy-Item testdata.ndjson.backup 020_seed.sql
 
 #### Raw Materials (5)
 1. **ABS-TH-001** - ABS Resin from Thailand
-   - DPP: `did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001`
+   - DPP: `did:web:dpp-brickquack.azurewebsites.net:raw:abs-th:batch-2025-10-001`
    - Supplier: PolyFormix Global (Thailand)
    
 2. **ABS-KW-001** - ABS Resin from Kuwait
-   - DPP: `did:web:dpp.brickquack.com:raw:abs-kw:batch-2025-10-002`
+   - DPP: `did:web:dpp-brickquack.azurewebsites.net:raw:abs-kw:batch-2025-10-002`
    - Supplier: PolyFormix Global (Kuwait)
    
 3. **CB-LUX-001** - Carbon Black from Luxembourg
-   - DPP: `did:web:dpp.brickquack.com:raw:cb-lux:batch-2025-10-003`
+   - DPP: `did:web:dpp-brickquack.azurewebsites.net:raw:cb-lux:batch-2025-10-003`
    - Supplier: PetroNovo Materials (Luxembourg)
    
 4. **PVC-BE-001** - PVC Packaging from Belgium
-   - DPP: `did:web:dpp.brickquack.com:raw:pvc-be:batch-2025-10-004`
+   - DPP: `did:web:dpp-brickquack.azurewebsites.net:raw:pvc-be:batch-2025-10-004`
    - Supplier: PackTech Belgium
    
 5. **PAPER-ZA-001** - Paper Packaging from South Africa
-   - DPP: `did:web:dpp.brickquack.com:raw:paper-za:batch-2025-10-005`
+   - DPP: `did:web:dpp-brickquack.azurewebsites.net:raw:paper-za:batch-2025-10-005`
    - Supplier: AfriPack Solutions
 
 #### Components (3)
 6. **RED-BRICK-001** - Red Plate Brick (2x4 studs)
-   - DPP: `did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001`
+   - DPP: `did:web:dpp-brickquack.azurewebsites.net:component:red-brick:batch-2025-Q4-001`
    - Made from: ABS-TH, ABS-KW, CB-LUX
    
 7. **YELLOW-BRICK-001** - Yellow Plate Brick (2x3 studs)
-   - DPP: `did:web:dpp.brickquack.com:component:yellow-brick:batch-2025-Q4-001`
+   - DPP: `did:web:dpp-brickquack.azurewebsites.net:component:yellow-brick:batch-2025-Q4-001`
    - Made from: ABS-TH, ABS-KW, CB-LUX (yellow pigment)
    
 8. **DUCK-EYE-001** - Duck Eye Component
-   - DPP: `did:web:dpp.brickquack.com:component:duck-eye:batch-2025-Q4-001`
+   - DPP: `did:web:dpp-brickquack.azurewebsites.net:component:duck-eye:batch-2025-Q4-001`
    - Made from: ABS-TH, CB-LUX
 
 #### Finished Product (1)
 9. **LEGO-DUCK-001** - Lego Duck Complete Set
-   - DPP: `did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234`
+   - DPP: `did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234`
    - Serial: SN-2025-LD-001234
    - Made from: 6× RED-BRICK, 10× YELLOW-BRICK, 2× DUCK-EYE, 1× PVC pack, 1× Paper pack
 
@@ -133,13 +133,13 @@ SELECT dpp_id, product_id FROM dpp;
 
 ```bash
 # Test finished product DPP
-curl http://localhost:8000/dpp/did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234
+curl http://localhost:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234
 
 # Test component DPP
-curl http://localhost:8000/dpp/did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001
+curl http://localhost:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:component:red-brick:batch-2025-Q4-001
 
 # Test raw material DPP
-curl http://localhost:8000/dpp/did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001
+curl http://localhost:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:raw:abs-th:batch-2025-10-001
 ```
 
 ---
@@ -157,9 +157,9 @@ Expected output:
 ```
 dpp_id                                                                       | product_id      | dpp_url
 -----------------------------------------------------------------------------+-----------------+--------------------------------------------------
-did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001                     | ABS-TH-001      | http://api:8000/dpp/did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001
-did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001            | RED-BRICK-001   | http://api:8000/dpp/did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001
-did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234         | LEGO-DUCK-001   | http://api:8000/dpp/did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234
+did:web:dpp-brickquack.azurewebsites.net:raw:abs-th:batch-2025-10-001                     | ABS-TH-001      | http://api:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:raw:abs-th:batch-2025-10-001
+did:web:dpp-brickquack.azurewebsites.net:component:red-brick:batch-2025-Q4-001            | RED-BRICK-001   | http://api:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:component:red-brick:batch-2025-Q4-001
+did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234         | LEGO-DUCK-001   | http://api:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234
 ```
 
 #### `dpp_version` table:

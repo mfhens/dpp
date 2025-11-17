@@ -130,7 +130,7 @@ docker-compose down -v
 docker-compose up -d
 
 # Wait for services to start, then test
-curl http://localhost:8000/dpp/did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234
+curl http://localhost:8000/dpp/did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234
 ```
 
 ### Option 2: Append to Existing Data
@@ -217,12 +217,12 @@ Use this checklist when filling out master data:
 ### DPP ID Naming Convention
 
 ```
-did:web:dpp.brickquack.com:{type}:{material}:{granularity}-{id}
+did:web:dpp-brickquack.azurewebsites.net:{type}:{material}:{granularity}-{id}
 
 Examples:
-- Raw material: did:web:dpp.brickquack.com:raw:abs-th:batch-2025-10-001
-- Component: did:web:dpp.brickquack.com:component:red-brick:batch-2025-Q4-001
-- Product: did:web:dpp.brickquack.com:product:lego-duck:item-SN-2025-LD-001234
+- Raw material: did:web:dpp-brickquack.azurewebsites.net:raw:abs-th:batch-2025-10-001
+- Component: did:web:dpp-brickquack.azurewebsites.net:component:red-brick:batch-2025-Q4-001
+- Product: did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:item-SN-2025-LD-001234
 ```
 
 **Rules**:
@@ -268,7 +268,7 @@ SELECT
   (payload->'environmentalFootprint'->'productCarbonFootprint'->>'value')::numeric as pcf,
   payload->>'product'->>'category' as category
 FROM dpp_version
-WHERE dpp_id LIKE '%brickquack.com%'
+WHERE dpp_id LIKE '%dpp-brickquack.azurewebsites.net%'
 ORDER BY pcf DESC;
 ```
 
@@ -292,7 +292,7 @@ WHERE payload->'provenance'->'supplierIds' @> '[{"name": "PolyFormix Global Ltd.
 **Cause**: DPP URL not accessible or ID format incorrect
 
 **Fix**:
-1. Verify ID follows schema: `did:web:dpp.brickquack.com:...`
+1. Verify ID follows schema: `did:web:dpp-brickquack.azurewebsites.net:...`
 2. Check `dppUrl` field matches: `http://api:8000/dpp/{dpp_id}`
 3. Ensure record loaded in database
 

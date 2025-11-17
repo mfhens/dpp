@@ -1,0 +1,73 @@
+{
+  "kind": "app,linux",
+  "deployment": {
+    "branch": null,
+    "repoUrl": null,
+    "type": "Microsoft.Web/sites/sourcecontrols"
+  },
+  "location": "Sweden Central",
+  "tags": null,
+  "runtime": {
+    "alwaysOn": false,
+    "linuxFxVersion": "PYTHON|3.12",
+    "minTlsVersion": "1.2",
+    "http20Enabled": false,
+    "pythonVersion": "",
+    "ftpsState": "FtpsOnly"
+  },
+  "connectionStrings": [],
+  "appName": "dpp-brickquack-api",
+  "sku": {
+    "family": null,
+    "capacity": null,
+    "tier": null,
+    "size": null,
+    "name": null
+  },
+  "httpsOnly": false,
+  "resourceGroup": "dpp-brickquack",
+  "defaultHostName": "dpp-brickquack-api.azurewebsites.net",
+  "appSettings": [
+    {
+      "slotSetting": false,
+      "value": "true",
+      "name": "SCM_DO_BUILD_DURING_DEPLOYMENT"
+    },
+    {
+      "slotSetting": false,
+      "value": "InstrumentationKey=0aaf738d-2c47-4dcd-9b48-1b3352cd8d08;IngestionEndpoint=https://swedencentral-0.in.applicationinsights.azure.com/;LiveEndpoint=https://swedencentral.livediagnostics.monitor.azure.com/;ApplicationId=5b9f6c0e-fdf8-4434-8345-421707abbdf6",
+      "name": "APPLICATIONINSIGHTS_CONNECTION_STRING"
+    },
+    {
+      "slotSetting": false,
+      "value": "~3",
+      "name": "ApplicationInsightsAgent_EXTENSION_VERSION"
+    },
+    {
+      "slotSetting": false,
+      "value": "true",
+      "name": "APPLICATIONINSIGHTSAGENT_EXTENSION_ENABLED"
+    },
+    {
+      "slotSetting": false,
+      "value": "7",
+      "name": "WEBSITE_HTTPLOGGING_RETENTION_DAYS"
+    },
+    {
+      "slotSetting": false,
+      "value": "1",
+      "name": "DEMO_MODE"
+    },
+    {
+      "slotSetting": false,
+      "value": "1",
+      "name": "ALLOW_ANON_PUBLIC"
+    }
+  ],
+  "enabledHostNames": [
+    "dpp-brickquack-api.azurewebsites.net",
+    "dpp-brickquack-api.scm.azurewebsites.net"
+  ],
+  "subscription": "Azure subscription 1",
+  "exportDate": "2025-11-17 13:52:14"
+}

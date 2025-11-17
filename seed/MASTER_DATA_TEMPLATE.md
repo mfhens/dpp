@@ -261,7 +261,7 @@ ROH (Raw Materials)
 |-------|-------------|--------|---------|
 | **ID Scheme** | prEN 18219 compliant scheme | `DID_W3C`, `WEB_STRUCTURED_PATH_AI_15459_18975`, `DOI_ISO_26324`, `IEC_61406_IL` | `DID_W3C` |
 | **ID Granularity** | Level of uniqueness | `model`, `batch`, `item` | `batch` for components, `item` for finished goods |
-| **DPP ID Format** | Structured identifier | DID: `did:web:dpp.brickquack.com:product:{material}:{id}` | `did:web:dpp.brickquack.com:product:lego-duck:batch-2025-Q4-001` |
+| **DPP ID Format** | Structured identifier | DID: `did:web:dpp-brickquack.azurewebsites.net:product:{material}:{id}` | `did:web:dpp-brickquack.azurewebsites.net:product:lego-duck:batch-2025-Q4-001` |
 
 ### Document Requirements
 

@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import os
 import time
 import datetime as dt
 from typing import Iterator, List, Optional
@@ -15,7 +14,6 @@ from sqlalchemy import (
     DateTime,
     Integer,
     ForeignKey,
-    text,
     UniqueConstraint,
     Index,
     event,
@@ -30,51 +28,30 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.exc import OperationalError
 
-# Prefer PostgreSQL JSONB when available; otherwise use generic JSON (SQLite fallback)
-try:
-    from sqlalchemy.dialects.postgresql import JSONB as JSONType  # type: ignore
-except Exception:  # pragma: no cover
-    from sqlalchemy import JSON as JSONType  # type: ignore
+# Import config for environment-aware setup
+from .config import settings
+
+# Use appropriate JSON type based on database dialect
+from sqlalchemy import JSON
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 # --------------------------------------------------------------------------------------
 # Engine & Session
 # --------------------------------------------------------------------------------------
 
-def _read_env_or_file(var: str) -> Optional[str]:
-    """
-    Prefer VAR_FILE (e.g., DATABASE_URL_FILE from Docker secrets); else use VAR.
-    Trims trailing whitespace/newlines (common for Docker secrets).
-    """
-    file_var = f"{var}_FILE"
-    file_path = os.getenv(file_var)
-    if file_path:
-        with open(file_path, "r") as f:
-            return f.read().strip()
-    val = os.getenv(var)
-    return val.strip() if val else None
-
-
-def _resolve_db_url() -> str:
-    """
-    Resolve the database URL in a container-safe way.
-    Priority: DATABASE_URL_FILE -> DATABASE_URL -> sane default.
-    The fallback is SQLite for local ad-hoc runs (no localhost-in-container footguns).
-    """
-    url = _read_env_or_file("DATABASE_URL")
-    if url:
-        return url
-
-    # Fallbacks:
-    # - If running in Docker and you *expect* Postgres, set DATABASE_URL_FILE/ENV explicitly.
-    # - For ad-hoc local runs, SQLite file DB keeps it simple without requiring a service.
-    return "sqlite+pysqlite:///./dpp.db"
-
-
-SQL_ECHO = os.getenv("SQL_ECHO", "0").lower() in {"1", "true", "yes"}
-
-ENGINE = create_engine(_resolve_db_url(), echo=SQL_ECHO, pool_pre_ping=True, future=True)
+ENGINE = create_engine(
+    settings.resolved_database_url,
+    echo=settings.sql_echo,
+    pool_pre_ping=True,
+    future=True
+)
 SessionLocal = sessionmaker(bind=ENGINE, autoflush=False, autocommit=False, expire_on_commit=False, class_=Session)
+
+# Select appropriate JSON type based on database dialect
+# PostgreSQL: Use JSONB for better query performance and indexing support
+# SQLite: Use JSON for compatibility
+JSONType = JSONB if ENGINE.dialect.name == "postgresql" else JSON
 
 
 def get_session() -> Iterator[Session]:
@@ -94,6 +71,7 @@ def init_db(create_views: bool = True) -> None:
     """
     Create tables and optional helper view. Safe to call multiple times.
     Includes a short readiness loop so startup doesn't race the DB container.
+    Handles race conditions when multiple workers try to create tables simultaneously.
     """
     # Light readiness probe (useful when Compose says "started" but not yet accepting)
     for i in range(10):
@@ -104,7 +82,14 @@ def init_db(create_views: bool = True) -> None:
         except OperationalError:
             time.sleep(0.5 + 0.5 * i)
 
-    Base.metadata.create_all(ENGINE)
+    # Create tables with error handling for concurrent initialization
+    try:
+        Base.metadata.create_all(ENGINE, checkfirst=True)
+    except OperationalError as e:
+        # If tables already exist (e.g., created by another worker), that's fine
+        if "already exists" not in str(e).lower():
+            raise
+    
     if create_views:
         _ensure_views()
 
@@ -132,12 +117,14 @@ class Dpp(Base):
     product_id: Mapped[str] = mapped_column(String(255), index=True)
     dpp_url: Mapped[str] = mapped_column(String(1024), unique=True, index=True)
     created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=text("NOW()"), index=True
+        DateTime(timezone=True), 
+        default=lambda: dt.datetime.now(dt.timezone.utc),
+        index=True
     )
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("NOW()"),
-        onupdate=text("NOW()"),
+        default=lambda: dt.datetime.now(dt.timezone.utc),
+        onupdate=lambda: dt.datetime.now(dt.timezone.utc),
         index=True,
     )
 
@@ -169,10 +156,10 @@ class DppVersion(Base):
     # Effective-from timestamp of this version
     valid_from: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("NOW()"),
+        default=lambda: dt.datetime.now(dt.timezone.utc),
         index=True,
     )
-    # JSON-LD payload
+    # JSON-LD payload (JSONB on PostgreSQL, JSON on SQLite)
     payload: Mapped[dict] = mapped_column(JSONType, nullable=False)
 
     dpp: Mapped[Dpp] = relationship(back_populates="versions")

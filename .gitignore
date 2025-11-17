@@ -152,6 +152,10 @@ data/
 *.pem
 *.crt
 
+# Log files
+logs/
+*.log
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -235,3 +239,23 @@ coverage/
 .env.production.local
 
 *.sh text eol=lf
+
+# Database files
+dpp.db
+*.sqlite
+*.sqlite3
+*.db
+
+# Azure deployment artifacts
+azure-logs/
+.azure/
+oryx-manifest.toml
+output.tar.gz
+antenv/
+
+# Deployment and build artifacts
+.deployment
+startup.sh
+web.config
+portal/deploy.zip
+api/deploy.zip
