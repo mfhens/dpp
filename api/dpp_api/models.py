@@ -4,49 +4,47 @@
 
 from __future__ import annotations
 
-import time
 import datetime as dt
-from typing import Iterator, List, Optional
+import time
+from collections.abc import Iterator
 
+# Use appropriate JSON type based on database dialect
 from sqlalchemy import (
-    create_engine,
-    String,
+    JSON,
     DateTime,
-    Integer,
     ForeignKey,
-    UniqueConstraint,
     Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    create_engine,
     event,
 )
-from sqlalchemy.orm import (
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import (  # type: ignore
     DeclarativeBase,
     Mapped,
+    Session,
     mapped_column,
     relationship,
     sessionmaker,
-    Session,
 )
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.schema import ForeignKey, UniqueConstraint
 
 # Import config for environment-aware setup
 from .config import settings
-
-# Use appropriate JSON type based on database dialect
-from sqlalchemy import JSON
-from sqlalchemy.dialects.postgresql import JSONB
-
 
 # --------------------------------------------------------------------------------------
 # Engine & Session
 # --------------------------------------------------------------------------------------
 
 ENGINE = create_engine(
-    settings.resolved_database_url,
-    echo=settings.sql_echo,
-    pool_pre_ping=True,
-    future=True
+    settings.resolved_database_url, echo=settings.sql_echo, pool_pre_ping=True, future=True
 )
-SessionLocal = sessionmaker(bind=ENGINE, autoflush=False, autocommit=False, expire_on_commit=False, class_=Session)
+SessionLocal = sessionmaker(
+    bind=ENGINE, autoflush=False, autocommit=False, expire_on_commit=False, class_=Session
+)
 
 # Select appropriate JSON type based on database dialect
 # PostgreSQL: Use JSONB for better query performance and indexing support
@@ -89,7 +87,7 @@ def init_db(create_views: bool = True) -> None:
         # If tables already exist (e.g., created by another worker), that's fine
         if "already exists" not in str(e).lower():
             raise
-    
+
     if create_views:
         _ensure_views()
 
@@ -97,6 +95,7 @@ def init_db(create_views: bool = True) -> None:
 # --------------------------------------------------------------------------------------
 # ORM Base
 # --------------------------------------------------------------------------------------
+
 
 class Base(DeclarativeBase):
     pass
@@ -106,39 +105,38 @@ class Base(DeclarativeBase):
 # Models
 # --------------------------------------------------------------------------------------
 
+
 class Dpp(Base):
     """
     DPP header: stable identity for a product/batch/item and its Digital Link.
     Versioned data lives in DppVersion (append-only).
     """
+
     __tablename__ = "dpp"
 
     dpp_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     product_id: Mapped[str] = mapped_column(String(255), index=True)
     dpp_url: Mapped[str] = mapped_column(String(1024), unique=True, index=True)
     created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), 
-        default=lambda: dt.datetime.now(dt.timezone.utc),
-        index=True
+        DateTime(timezone=True), default=lambda: dt.datetime.now(dt.UTC), index=True
     )
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: dt.datetime.now(dt.timezone.utc),
-        onupdate=lambda: dt.datetime.now(dt.timezone.utc),
+        default=lambda: dt.datetime.now(dt.UTC),
+        onupdate=lambda: dt.datetime.now(dt.UTC),
         index=True,
     )
 
     # versions relationship; delete-orphan to keep referential integrity clean
-    versions: Mapped[List["DppVersion"]] = relationship(
+    versions: Mapped[list[DppVersion]] = relationship(
+        "DppVersion",
         back_populates="dpp",
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="desc(DppVersion.version)",
     )
 
-    __table_args__ = (
-        Index("ix_dpp_product_id_created", "product_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_dpp_product_id_created", "product_id", "created_at"),)
 
 
 class DppVersion(Base):
@@ -146,6 +144,7 @@ class DppVersion(Base):
     Append-only version row for a DPP. Each insert creates a new version number.
     Use application logic to increment `version`. We enforce uniqueness and sanity.
     """
+
     __tablename__ = "dpp_version"
 
     dpp_id: Mapped[str] = mapped_column(
@@ -156,17 +155,15 @@ class DppVersion(Base):
     # Effective-from timestamp of this version
     valid_from: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=lambda: dt.datetime.now(dt.UTC),
         index=True,
     )
     # JSON-LD payload (JSONB on PostgreSQL, JSON on SQLite)
     payload: Mapped[dict] = mapped_column(JSONType, nullable=False)
 
-    dpp: Mapped[Dpp] = relationship(back_populates="versions")
+    dpp: Mapped[Dpp] = relationship("Dpp", back_populates="versions")
 
-    __table_args__ = (
-        UniqueConstraint("dpp_id", "version", name="uq_dpp_version_id_ver"),
-    )
+    __table_args__ = (UniqueConstraint("dpp_id", "version", name="uq_dpp_version_id_ver"),)
 
 
 # --------------------------------------------------------------------------------------
@@ -184,6 +181,7 @@ FROM dpp_version v
 ORDER BY v.dpp_id, v.version DESC;
 """
 
+
 def _ensure_views() -> None:
     """
     Create helper view for "latest version per DPP".
@@ -199,7 +197,8 @@ def _ensure_views() -> None:
 # Convenience query functions
 # --------------------------------------------------------------------------------------
 
-def get_latest_dpp_version(db: Session, dpp_id: str) -> Optional[DppVersion]:
+
+def get_latest_dpp_version(db: Session, dpp_id: str) -> DppVersion | None:
     return (
         db.query(DppVersion)
         .filter(DppVersion.dpp_id == dpp_id)
@@ -208,7 +207,7 @@ def get_latest_dpp_version(db: Session, dpp_id: str) -> Optional[DppVersion]:
     )
 
 
-def get_dpp_as_of(db: Session, dpp_id: str, at: dt.datetime) -> Optional[DppVersion]:
+def get_dpp_as_of(db: Session, dpp_id: str, at: dt.datetime) -> DppVersion | None:
     return (
         db.query(DppVersion)
         .filter(DppVersion.dpp_id == dpp_id, DppVersion.valid_from <= at)
@@ -220,6 +219,7 @@ def get_dpp_as_of(db: Session, dpp_id: str, at: dt.datetime) -> Optional[DppVers
 # --------------------------------------------------------------------------------------
 # Safety rails: auto-sanitize version values
 # --------------------------------------------------------------------------------------
+
 
 @event.listens_for(DppVersion, "before_insert")
 def _check_version_before_insert(mapper, connection, target: DppVersion) -> None:
@@ -237,6 +237,7 @@ if __name__ == "__main__":
     init_db()
 
     import uuid
+
     new_id = str(uuid.uuid4())
 
     with SessionLocal() as s:

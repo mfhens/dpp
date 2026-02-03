@@ -1,37 +1,32 @@
 # main.py
 from __future__ import annotations
 
-import uuid
 import datetime as dt
-from typing import Optional
-import os
+import json
 import logging
+import os
+import uuid
 from pathlib import Path
-import threading
 
-from fastapi import FastAPI, Depends, HTTPException, Request, Header, UploadFile
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
+from jsonschema import Draft202012Validator
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-import json
-from jsonschema import Draft202012Validator
 
 # Auth and service utilities (your existing modules)
-from .auth import oidc_oauth2, _opa_mask, apply_masking, Principal
-from .services.identifiers import normalize_id, generate_dl
-from .services.object_store import put_object
-from .services.audit import audit_append
+from .auth import Principal, _opa_mask, apply_masking, oidc_oauth2
 
 # DB models and helpers aligned with models.py
 from .models import (
-    init_db,
-    get_session,
     Dpp,
     DppVersion,
     get_latest_dpp_version,
+    get_session,
+    init_db,
 )
-
-import hashlib
-import base64
+from .services.audit import audit_append
+from .services.identifiers import normalize_id
+from .services.object_store import put_object
 
 # Setup logging
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -43,27 +38,28 @@ handlers = []
 
 # Console handler
 console_handler = logging.StreamHandler()
-console_handler.setFormatter(logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-))
+console_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+)
 handlers.append(console_handler)
 
 if log_to_file:
     # Create log directory if it doesn't exist
     log_path = Path(log_file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # Add file handler with rotation
     from logging.handlers import RotatingFileHandler
+
     file_handler = RotatingFileHandler(
         log_file,
-        maxBytes=10*1024*1024,  # 10MB
+        maxBytes=10 * 1024 * 1024,  # 10MB
         backupCount=5,
-        encoding='utf-8'
+        encoding="utf-8",
     )
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    ))
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
     handlers.append(file_handler)
 
 # Get root logger and configure it
@@ -89,32 +85,133 @@ if log_to_file:
 
 MAX_DB_ID_LEN = 512  # current DB schema
 
-app = FastAPI(title="DPP API", version="0.2.0")
+# -----------------------------
+# Global observer for file watcher
+_file_watcher_observer = None
+
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _file_watcher_observer
+
+    logger.info("🚀 DPP API startup initiated")
+
+    # Initialize database
+    logger.info("📊 Initializing database...")
+    try:
+        init_db()
+        logger.info("✅ Database initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        logger.exception("Full traceback:")
+        raise
+
+    # Start file watcher if enabled
+    enable_watcher = os.environ.get("ENABLE_FILE_WATCHER", "true").lower() == "true"
+    if enable_watcher:
+        try:
+            from .planning_insights_watcher import watch_folder
+
+            # Determine drop folder location
+            drop_folder = Path(__file__).resolve().parents[1] / "drop"
+            drop_folder_env = os.environ.get("DROP_FOLDER")
+            if drop_folder_env:
+                drop_folder = Path(drop_folder_env)
+
+            # Get debounce setting
+            debounce_seconds = float(os.environ.get("WATCHER_DEBOUNCE", "2.0"))
+
+            logger.info("👁️  Starting Planning Insights File Watcher")
+            logger.info(f"   Drop folder: {drop_folder}")
+            logger.info(f"   Debounce: {debounce_seconds}s")
+
+            # Start watcher in background mode (non-blocking)
+            _file_watcher_observer = watch_folder(
+                drop_folder=drop_folder, debounce_seconds=debounce_seconds, run_forever=False
+            )
+
+            logger.info("✅ File watcher started successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to start file watcher: {e}")
+            logger.exception("Full traceback:")
+    else:
+        logger.info("ℹ️  File watcher disabled (set ENABLE_FILE_WATCHER=true to enable)")
+
+    # Security and configuration warnings
+    demo_mode = os.getenv("DEMO_MODE", "0").lower() in {"1", "true", "yes"}
+    allow_anon = os.getenv("ALLOW_ANON_PUBLIC", "1").lower() in {"1", "true", "yes"}
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    opa_url = os.getenv("OPA_URL")
+
+    if demo_mode:
+        logger.warning("⚠️  SECURITY WARNING: DEMO_MODE is ENABLED - Authentication is DISABLED")
+        logger.warning("⚠️  This is a CRITICAL SECURITY RISK in production environments")
+
+    if allow_anon and environment == "production":
+        logger.warning("⚠️  SECURITY WARNING: Anonymous GET requests allowed in PRODUCTION")
+        logger.warning("⚠️  Consider setting ALLOW_ANON_PUBLIC=0 for production")
+
+    if not opa_url and environment == "production":
+        logger.warning("⚠️  SECURITY WARNING: OPA policy enforcement is DISABLED")
+        logger.warning("⚠️  Set OPA_URL to enable policy-based access control")
+
+    if SCHEMA_VALIDATOR is None:
+        logger.critical("🚨 CRITICAL: Schema validator NOT LOADED!")
+        logger.critical("🚨 Payload validation will FAIL - API is NOT operational")
+        logger.critical("🚨 Check schema file location and fix before accepting traffic")
+
+    logger.info("✅ DPP API startup complete")
+
+    yield
+
+    logger.info("🛑 DPP API shutdown initiated")
+
+    # Stop file watcher if running
+    observer = _file_watcher_observer
+    if observer is not None:
+        logger.info("Stopping file watcher...")
+        try:
+            observer.stop()
+            observer.join(timeout=5)
+            logger.info("✅ File watcher stopped")
+        except Exception as e:
+            logger.error(f"Error stopping file watcher: {e}")
+
+    logger.info("✅ DPP API shutdown complete")
+
+
+app = FastAPI(title="DPP API", version="0.2.0", lifespan=lifespan)
+
 
 # Load canonical schema for payload validation
 # Try multiple possible locations for the schema file
 def find_schema_path() -> Path:
     """Find the schema file in various possible deployment locations."""
     schema_relative = "schemas/core/1-0-0.schema.json"
-    
+
     # Possible base directories to search
     possible_bases = [
-        Path(__file__).resolve().parents[2],  # Local dev: dpp_api/main.py -> dpp_api -> api -> project_root
+        Path(__file__)
+        .resolve()
+        .parents[2],  # Local dev: dpp_api/main.py -> dpp_api -> api -> project_root
         Path(__file__).resolve().parent.parent,  # Azure: /tmp/.../dpp_api/main.py -> /tmp/.../
         Path.cwd(),  # Current working directory
         Path("/home/site/wwwroot"),  # Azure App Service common path
     ]
-    
+
     for base in possible_bases:
         schema_path = base / schema_relative
         if schema_path.exists():
             logger.info(f"📋 Found schema at: {schema_path}")
             return schema_path
-    
+
     # If not found, log all attempted paths
     attempted = [str(base / schema_relative) for base in possible_bases]
     logger.error(f"❌ Schema file not found. Attempted paths: {attempted}")
     raise FileNotFoundError(f"Schema file not found. Attempted: {attempted}")
+
 
 # Load schema with comprehensive error handling
 # Allow app to start even if schema is missing (for health checks)
@@ -126,27 +223,27 @@ SCHEMA_VALIDATOR = None
 try:
     SCHEMA_PATH = find_schema_path()
     logger.info(f"📋 Loading schema from: {SCHEMA_PATH}")
-    
-    with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+
+    with open(SCHEMA_PATH, encoding="utf-8") as f:
         CORE_SCHEMA = json.load(f)
-    
+
     SCHEMA_VALIDATOR = Draft202012Validator(CORE_SCHEMA)
     logger.info("✅ Schema loaded and validator initialized successfully")
-    
+
 except FileNotFoundError as e:
-    logger.critical(f"🚨 CRITICAL: Schema file not found!")
-    logger.critical(f"🚨 The API will start but payload validation will FAIL")
+    logger.critical("🚨 CRITICAL: Schema file not found!")
+    logger.critical("🚨 The API will start but payload validation will FAIL")
     logger.critical(f"🚨 Error: {e}")
     # Don't raise - allow app to start for health checks
-    
+
 except json.JSONDecodeError as e:
-    logger.critical(f"🚨 CRITICAL: Schema file is invalid JSON!")
-    logger.critical(f"🚨 The API will start but payload validation will FAIL")
+    logger.critical("🚨 CRITICAL: Schema file is invalid JSON!")
+    logger.critical("🚨 The API will start but payload validation will FAIL")
     logger.critical(f"🚨 Error: {e}")
-    
+
 except Exception as e:
-    logger.critical(f"🚨 CRITICAL: Failed to initialize schema validator!")
-    logger.critical(f"🚨 The API will start but payload validation will FAIL")
+    logger.critical("🚨 CRITICAL: Failed to initialize schema validator!")
+    logger.critical("🚨 The API will start but payload validation will FAIL")
     logger.critical(f"🚨 Error: {e}")
     logger.exception("Full traceback:")
 
@@ -157,13 +254,13 @@ except Exception as e:
 class DPPCreate(BaseModel):
     product_id: str
     model: str
-    batch: Optional[str] = None
+    batch: str | None = None
     payload: dict = Field(..., description="JSON-LD document")
 
 
 class DPPVersionCreate(BaseModel):
     payload: dict = Field(..., description="JSON-LD document")
-    valid_from: Optional[str] = Field(
+    valid_from: str | None = Field(
         None,
         description="ISO-8601 timestamp; defaults to server UTC now if not provided",
     )
@@ -183,117 +280,21 @@ def health_check():
 @app.get("/")
 def root():
     """Root endpoint with API information."""
-    return {
-        "service": "DPP API",
-        "version": app.version,
-        "docs": "/docs",
-        "health": "/health"
-    }
+    return {"service": "DPP API", "version": app.version, "docs": "/docs", "health": "/health"}
 
 
 # -----------------------------
 # Global observer for file watcher
 _file_watcher_observer = None
 
-@app.on_event("startup")
-def startup() -> None:
-    global _file_watcher_observer
-    
-    logger.info("🚀 DPP API startup initiated")
-    
-    # Initialize database
-    logger.info("📊 Initializing database...")
-    try:
-        init_db()
-        logger.info("✅ Database initialized successfully")
-    except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}")
-        logger.exception("Full traceback:")
-        raise
-    
-    # Start file watcher if enabled
-    enable_watcher = os.environ.get("ENABLE_FILE_WATCHER", "true").lower() == "true"
-    if enable_watcher:
-        try:
-            from .planning_insights_watcher import watch_folder
-            
-            # Determine drop folder location
-            drop_folder = Path(__file__).resolve().parents[1] / "drop"
-            drop_folder_env = os.environ.get("DROP_FOLDER")
-            if drop_folder_env:
-                drop_folder = Path(drop_folder_env)
-            
-            # Get debounce setting
-            debounce_seconds = float(os.environ.get("WATCHER_DEBOUNCE", "2.0"))
-            
-            logger.info("�️  Starting Planning Insights File Watcher")
-            logger.info(f"   Drop folder: {drop_folder}")
-            logger.info(f"   Debounce: {debounce_seconds}s")
-            
-            # Start watcher in background mode (non-blocking)
-            _file_watcher_observer = watch_folder(
-                drop_folder=drop_folder,
-                debounce_seconds=debounce_seconds,
-                run_forever=False
-            )
-            
-            logger.info("✅ File watcher started successfully")
-        except Exception as e:
-            logger.error(f"❌ Failed to start file watcher: {e}")
-            logger.exception("Full traceback:")
-    else:
-        logger.info("ℹ️  File watcher disabled (set ENABLE_FILE_WATCHER=true to enable)")
-    
-    # Security and configuration warnings
-    demo_mode = os.getenv("DEMO_MODE", "0").lower() in {"1", "true", "yes"}
-    allow_anon = os.getenv("ALLOW_ANON_PUBLIC", "1").lower() in {"1", "true", "yes"}
-    environment = os.getenv("ENVIRONMENT", "development").lower()
-    opa_url = os.getenv("OPA_URL")
-    
-    if demo_mode:
-        logger.warning("⚠️  SECURITY WARNING: DEMO_MODE is ENABLED - Authentication is DISABLED")
-        logger.warning("⚠️  This is a CRITICAL SECURITY RISK in production environments")
-    
-    if allow_anon and environment == "production":
-        logger.warning("⚠️  SECURITY WARNING: Anonymous GET requests allowed in PRODUCTION")
-        logger.warning("⚠️  Consider setting ALLOW_ANON_PUBLIC=0 for production")
-    
-    if not opa_url and environment == "production":
-        logger.warning("⚠️  SECURITY WARNING: OPA policy enforcement is DISABLED")
-        logger.warning("⚠️  Set OPA_URL to enable policy-based access control")
-    
-    if SCHEMA_VALIDATOR is None:
-        logger.critical("🚨 CRITICAL: Schema validator NOT LOADED!")
-        logger.critical("🚨 Payload validation will FAIL - API is NOT operational")
-        logger.critical("🚨 Check schema file location and fix before accepting traffic")
-    
-    logger.info("✅ DPP API startup complete")
-
-
-@app.on_event("shutdown")
-def shutdown() -> None:
-    global _file_watcher_observer
-    
-    logger.info("🛑 DPP API shutdown initiated")
-    
-    # Stop file watcher if running
-    if _file_watcher_observer:
-        logger.info("Stopping file watcher...")
-        try:
-            _file_watcher_observer.stop()
-            _file_watcher_observer.join(timeout=5)
-            logger.info("✅ File watcher stopped")
-        except Exception as e:
-            logger.error(f"Error stopping file watcher: {e}")
-    
-    logger.info("✅ DPP API shutdown complete")
+# Deprecated startup/shutdown handlers removed - using lifespan context manager instead
 
 
 # -----------------------------
 # Helpers
 # -----------------------------
 def _utcnow() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 def _parse_iso8601(value: str) -> dt.datetime:
@@ -312,8 +313,8 @@ def _parse_iso8601(value: str) -> dt.datetime:
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ISO-8601 timestamp")
     if dt_obj.tzinfo is None:
-        dt_obj = dt_obj.replace(tzinfo=dt.timezone.utc)
-    return dt_obj.astimezone(dt.timezone.utc)
+        dt_obj = dt_obj.replace(tzinfo=dt.UTC)
+    return dt_obj.astimezone(dt.UTC)
 
 
 def _validate_payload(payload: dict) -> None:
@@ -321,10 +322,9 @@ def _validate_payload(payload: dict) -> None:
     if SCHEMA_VALIDATOR is None:
         logger.error("❌ Schema validator not initialized - cannot validate payload")
         raise HTTPException(
-            status_code=500,
-            detail="Schema validator not available. Server configuration error."
+            status_code=500, detail="Schema validator not available. Server configuration error."
         )
-    
+
     logger.debug("Validating payload against schema...")
     errors = sorted(SCHEMA_VALIDATOR.iter_errors(payload), key=lambda e: e.path)
     if errors:
@@ -345,12 +345,12 @@ def list_dpps(
     db: Session = Depends(get_session),
     skip: int = 0,
     limit: int = 100,
-    product_id: Optional[str] = None,
+    product_id: str | None = None,
 ):
     """
     List all DPPs in the database.
     Returns basic header information for each DPP.
-    
+
     Args:
         skip: Number of records to skip (pagination)
         limit: Maximum number of records to return
@@ -361,20 +361,20 @@ def list_dpps(
     logger.debug(f"   Skip: {skip}, Limit: {limit}")
     if product_id:
         logger.debug(f"   Filter by product_id: {product_id}")
-    
+
     try:
         query = db.query(Dpp)
-        
+
         # Apply case-insensitive product_id filter if provided
         if product_id:
             # Normalize the search term
             normalized_search = normalize_id(product_id)
             # Use case-insensitive LIKE search on normalized product_id
             query = query.filter(Dpp.product_id.ilike(f"%{normalized_search}%"))
-        
+
         dpps = query.offset(skip).limit(limit).all()
         logger.info(f"   ✅ Found {len(dpps)} DPPs")
-        
+
         result = [
             {
                 "id": dpp.dpp_id,
@@ -385,17 +385,19 @@ def list_dpps(
             }
             for dpp in dpps
         ]
-        
+
         try:
-            audit_append("dpp.list", {"actor": actor, "count": len(dpps), "product_id_filter": product_id})
+            audit_append(
+                "dpp.list", {"actor": actor, "count": len(dpps), "product_id_filter": product_id}
+            )
         except Exception as e:
             logger.warning(f"   Audit log failed: {e}")
-        
+
         return result
-        
+
     except Exception as e:
         logger.error(f"   ❌ Failed to list DPPs: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list DPPs: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to list DPPs: {e!s}")
 
 
 @app.get("/dpp/search", response_model=list)
@@ -407,26 +409,25 @@ def search_dpps(
 ):
     """
     Search DPPs by product_id or model (case-insensitive).
-    
+
     Args:
         q: Search query string (searches product_id and model fields)
         limit: Maximum number of results to return
-    
+
     Returns:
         List of matching DPPs with their latest version payloads
     """
     actor = getattr(token, "sub", "unknown")
     logger.info(f"🔍 Search DPPs request from actor: {actor}")
     logger.debug(f"   Query: {q}, Limit: {limit}")
-    
+
     try:
         from sqlalchemy.orm import joinedload
-        from sqlalchemy import func
-        
+
         # Normalize search query
         normalized_query = normalize_id(q)
         logger.debug(f"   Normalized query: {normalized_query}")
-        
+
         # Search by product_id (case-insensitive) with eager loading of versions
         dpps_by_product = (
             db.query(Dpp)
@@ -435,10 +436,10 @@ def search_dpps(
             .limit(limit)
             .all()
         )
-        
+
         results = []
         seen_ids = set()
-        
+
         # Add results from product_id search
         # Versions are already loaded, no N+1 query
         for dpp in dpps_by_product:
@@ -446,18 +447,20 @@ def search_dpps(
                 seen_ids.add(dpp.dpp_id)
                 # Get latest from already-loaded versions (no additional query)
                 latest = dpp.versions[0] if dpp.versions else None
-                results.append({
-                    "id": dpp.dpp_id,
-                    "product_id": dpp.product_id,
-                    "dpp_url": dpp.dpp_url,
-                    "version": latest.version if latest else None,
-                    "match_field": "product_id",
-                })
-        
+                results.append(
+                    {
+                        "id": dpp.dpp_id,
+                        "product_id": dpp.product_id,
+                        "dpp_url": dpp.dpp_url,
+                        "version": latest.version if latest else None,
+                        "match_field": "product_id",
+                    }
+                )
+
         # Also search by model in payload (if we haven't hit limit)
         if len(results) < limit:
             from sqlalchemy.orm import joinedload
-            
+
             remaining_limit = limit - len(results)
             # Use eager loading to avoid N+1 queries
             versions = (
@@ -468,45 +471,47 @@ def search_dpps(
                 .limit(remaining_limit * 2)  # Get more to filter
                 .all()
             )
-            
+
             for v in versions:
                 if v.dpp_id in seen_ids:
                     continue
-                    
+
                 payload = v.payload or {}
                 product = payload.get("product", {})
                 model = product.get("model", "")
-                
+
                 # Case-insensitive model match
                 if model and normalized_query in model.lower():
                     seen_ids.add(v.dpp_id)
                     # DPP is already loaded via joinedload, no additional query
                     dpp = v.dpp
                     if dpp:
-                        results.append({
-                            "id": dpp.dpp_id,
-                            "product_id": dpp.product_id,
-                            "dpp_url": dpp.dpp_url,
-                            "version": v.version,
-                            "match_field": "model",
-                            "model": model,
-                        })
-                        
+                        results.append(
+                            {
+                                "id": dpp.dpp_id,
+                                "product_id": dpp.product_id,
+                                "dpp_url": dpp.dpp_url,
+                                "version": v.version,
+                                "match_field": "model",
+                                "model": model,
+                            }
+                        )
+
                         if len(results) >= limit:
                             break
-        
+
         logger.info(f"   ✅ Found {len(results)} matching DPPs")
-        
+
         try:
             audit_append("dpp.search", {"actor": actor, "query": q, "count": len(results)})
         except Exception as e:
             logger.warning(f"   Audit log failed: {e}")
-        
+
         return results
-        
+
     except Exception as e:
         logger.error(f"   ❌ Search failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {e!s}")
 
 
 @app.post("/dpp", response_model=dict)
@@ -518,7 +523,7 @@ def create_dpp(
     actor = getattr(token, "sub", "unknown")
     logger.info(f"📝 Create DPP request from actor: {actor}")
     logger.debug(f"   Product ID: {cmd.product_id}, Model: {cmd.model}")
-    
+
     try:
         _validate_payload(cmd.payload)
         logger.debug("   ✅ Payload validation passed")
@@ -545,7 +550,7 @@ def create_dpp(
     ts = _utcnow()
 
     if header:
-        logger.info(f"   DPP exists, creating new version")
+        logger.info("   DPP exists, creating new version")
         # Get latest version with locking to prevent race conditions
         latest = (
             db.query(DppVersion)
@@ -565,18 +570,20 @@ def create_dpp(
         header.updated_at = ts
         db.add(v)
         db.commit()
-        
+
         logger.info(f"   ✅ Created version {next_ver} for DPP: {dpp_id}")
 
         try:
-            audit_append("dpp.version.create", {"dpp_id": dpp_id, "version": next_ver, "actor": actor})
+            audit_append(
+                "dpp.version.create", {"dpp_id": dpp_id, "version": next_ver, "actor": actor}
+            )
         except Exception as e:
             logger.warning(f"   Audit log failed: {e}")
 
         return {"dpp_id": dpp_id, "dpp_url": header.dpp_url, "version": next_ver}
 
     # 4) else create header + v1
-    logger.info(f"   Creating new DPP")
+    logger.info("   Creating new DPP")
     pid = normalize_id(cmd.product_id)
     dl_uri = dpp_url  # align header URL with what we expose
     dpp = Dpp(dpp_id=dpp_id, product_id=pid, dpp_url=dl_uri)
@@ -587,7 +594,7 @@ def create_dpp(
     dpp.updated_at = ts
     db.add(v)
     db.commit()
-    
+
     logger.info(f"   ✅ Created new DPP: {dpp_id}")
 
     try:
@@ -598,13 +605,14 @@ def create_dpp(
     return {"dpp_id": dpp_id, "dpp_url": dl_uri, "version": 1}
 
 
-
 @app.get("/dpp/{dpp_id}", response_model=dict)
 def resolve_dpp(
     dpp_id: str,
-    at: Optional[str] = None,
+    at: str | None = None,
     token: Principal = Depends(oidc_oauth2),
-    request: Request = None,
+    request: Request = Depends(
+        lambda r: r
+    ),  # Use dependency to get request, avoids default value issues
     db: Session = Depends(get_session),
 ):
     actor = getattr(token, "sub", "unknown")
@@ -612,7 +620,7 @@ def resolve_dpp(
     logger.debug(f"   Actor: {actor}")
     if at:
         logger.debug(f"   Time-travel query at: {at}")
-    
+
     # Time-travel or latest read
     if at:
         try:
@@ -623,7 +631,7 @@ def resolve_dpp(
                 .order_by(DppVersion.valid_from.desc())
                 .first()
             )
-        except HTTPException as e:
+        except HTTPException:
             logger.warning(f"   ❌ Invalid timestamp: {at}")
             raise
     else:
@@ -645,13 +653,13 @@ def resolve_dpp(
     if not v:
         logger.warning(f"   ❌ DPP not found: {dpp_id}")
         raise HTTPException(status_code=404, detail="Not found")
-    
+
     # ---------------------------
     # Data Masking / Filtering
     # ---------------------------
     path_elems = [p for p in request.url.path.split("/") if p] if request else ["dpp", dpp_id]
     access_tier = request.headers.get("x-access-tier", "public") if request else "public"
-    
+
     opa_input = {
         "user": {"sub": token.sub, "realm": token.realm, "scopes": token.scopes},
         "method": "GET",
@@ -659,11 +667,11 @@ def resolve_dpp(
         "access_tier": access_tier,
         "dpp_id": dpp_id,
     }
-    
+
     # Ask OPA what to mask
     mask_paths = _opa_mask(opa_input)
     final_payload = v.payload
-    
+
     if mask_paths:
         logger.debug(f"   🎭 Masking fields: {mask_paths}")
         final_payload = apply_masking(v.payload, mask_paths)
@@ -687,24 +695,24 @@ def delete_dpp(
     actor = getattr(token, "sub", "unknown")
     logger.info(f"🗑️  Delete DPP request: {dpp_id}")
     logger.debug(f"   Actor: {actor}")
-    
+
     try:
         # Check if DPP exists
         dpp = db.query(Dpp).filter(Dpp.dpp_id == dpp_id).first()
         if not dpp:
             logger.warning(f"   ❌ DPP not found: {dpp_id}")
             raise HTTPException(status_code=404, detail="DPP not found")
-        
+
         # Delete all versions first (due to foreign key constraint)
         versions_deleted = db.query(DppVersion).filter(DppVersion.dpp_id == dpp_id).delete()
         logger.debug(f"   Deleted {versions_deleted} versions")
-        
+
         # Delete the header
         db.delete(dpp)
         db.commit()
-        
+
         logger.info(f"   ✅ Deleted DPP: {dpp_id}")
-        
+
         # Audit the deletion
         try:
             audit_append(
@@ -713,23 +721,23 @@ def delete_dpp(
                     "dpp_id": dpp_id,
                     "actor": actor,
                     "versions_deleted": versions_deleted,
-                }
+                },
             )
         except Exception as e:
             logger.warning(f"   Audit log failed: {e}")
-        
+
         return {
             "ok": True,
             "dpp_id": dpp_id,
             "versions_deleted": versions_deleted,
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"   ❌ Failed to delete DPP: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to delete DPP: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete DPP: {e!s}")
 
 
 @app.post("/dpp/{dpp_id}/versions", response_model=dict)
@@ -738,7 +746,8 @@ def create_dpp_version(
     cmd: DPPVersionCreate,
     token=Depends(oidc_oauth2),
     db: Session = Depends(get_session),
-    expected_prev_version: Optional[int] = Header(
+    expected_prev_version: int
+    | None = Header(
         default=None,
         alias="Expected-Prev-Version",
         description="If provided, ensures latest version matches this; else 409",
@@ -749,7 +758,7 @@ def create_dpp_version(
     logger.debug(f"   Actor: {actor}")
     if expected_prev_version is not None:
         logger.debug(f"   Expected previous version: {expected_prev_version}")
-    
+
     # Ensure header exists and lock it to prevent race conditions
     dpp = db.query(Dpp).filter(Dpp.dpp_id == dpp_id).with_for_update().first()
     if not dpp:
@@ -787,7 +796,7 @@ def create_dpp_version(
     except HTTPException as e:
         logger.warning(f"   ❌ Payload validation failed: {e.detail}")
         raise
-        
+
     v = DppVersion(
         dpp_id=dpp_id,
         version=next_ver,
@@ -797,7 +806,7 @@ def create_dpp_version(
     dpp.updated_at = valid_from
     db.add(v)
     db.commit()
-    
+
     logger.info(f"   ✅ Created version {next_ver} for DPP: {dpp_id}")
 
     # Audit
@@ -820,24 +829,24 @@ async def upload_attachment(
 ):
     actor = getattr(token, "sub", "unknown")
     filename = req.headers.get("x-filename", f"{uuid.uuid4()}.bin")
-    
+
     logger.info(f"📎 Upload attachment to DPP: {dpp_id}")
     logger.debug(f"   Actor: {actor}")
     logger.debug(f"   Filename: {filename}")
-    
+
     # Optional existence check
     # dpp = db.query(Dpp).filter(Dpp.dpp_id == dpp_id).first() ...
 
     body = await req.body()  # prototype: read into memory
     logger.debug(f"   Size: {len(body)} bytes")
-    
+
     try:
         url = put_object(bucket="dpp", key=f"{dpp_id}/{filename}", body=body)
         logger.info(f"   ✅ Attachment uploaded: {filename}")
         logger.debug(f"   URL: {url}")
     except Exception as e:
         logger.error(f"   ❌ Upload failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {e!s}")
 
     try:
         audit_append(
@@ -848,6 +857,7 @@ async def upload_attachment(
         logger.warning(f"   Audit log failed: {e}")
 
     return {"ok": True, "url": url}
+
 
 def _extract_dpp_id(payload: dict) -> str:
     """Extract and normalize DPP ID from payload."""
@@ -879,47 +889,44 @@ async def upload_planning_insights_csv(
     """
     Upload and process planning insights CSV file.
     For Azure App Service deployment - replaces file watcher.
-    
+
     Note: Uses standard authentication. Works in DEMO_MODE for anonymous access.
     """
     actor = getattr(token, "sub", "unknown")
     logger.info(f"📤 CSV upload from actor: {actor}")
     logger.info(f"   Filename: {file.filename}")
-    
-    if not file.filename.endswith('.csv'):
-        logger.warning(f"   ❌ Invalid file type: {file.filename}")
-        raise HTTPException(
-            status_code=400,
-            detail="File must be .csv format"
-        )
-    
+
+    if not file.filename or not file.filename.endswith(".csv"):
+        filename = file.filename or "unknown"
+        logger.warning(f"   ❌ Invalid file type: {filename}")
+        raise HTTPException(status_code=400, detail="File must be .csv format")
+
     try:
         # Read file content
         content = await file.read()
         logger.info(f"   File size: {len(content)} bytes")
-        
+
         # Save to temp location and process using existing logic
         import tempfile
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
+
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as tmp:
             tmp.write(content)
             tmp_path = Path(tmp.name)
-        
+
         try:
             from .planning_insights_watcher import process_csv_file
+
             result = process_csv_file(tmp_path)
-            
+
             # Clean up temp file
             tmp_path.unlink()
-            
+
             if not result.success and result.errors:
                 error_msg = "; ".join(result.errors[:3])  # First 3 errors
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Processing failed: {error_msg}"
-                )
-            
+                raise HTTPException(status_code=500, detail=f"Processing failed: {error_msg}")
+
             logger.info(f"   ✅ Processed {result.dpps_updated} DPPs")
-            
+
             # Audit the upload
             try:
                 audit_append(
@@ -928,32 +935,29 @@ async def upload_planning_insights_csv(
                         "filename": file.filename,
                         "actor": actor,
                         "dpps_updated": result.dpps_updated,
-                        "dpps_not_found": result.dpps_not_found
-                    }
+                        "dpps_not_found": result.dpps_not_found,
+                    },
                 )
             except Exception as e:
                 logger.warning(f"   Audit log failed: {e}")
-            
+
             return {
                 "ok": True,
                 "filename": file.filename,
                 "dpps_updated": result.dpps_updated,
                 "dpps_not_found": result.dpps_not_found,
-                "records_read": result.records_read
+                "records_read": result.records_read,
             }
-            
-        except Exception as e:
+
+        except Exception:
             # Clean up temp file on error
             if tmp_path.exists():
                 tmp_path.unlink()
             raise
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"   ❌ Processing error: {e}")
         logger.exception("Full traceback:")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process file: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {e!s}")

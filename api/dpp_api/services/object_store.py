@@ -1,15 +1,13 @@
 # object_store.py
 from __future__ import annotations
 
+import hashlib
 import io
 import os
 import typing as t
-import hashlib
-from datetime import timedelta, datetime
 
 import boto3
 from botocore.client import Config
-
 
 _MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
 _MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minio")
@@ -32,19 +30,24 @@ def _s3():
     )
 
 
-def _as_bytes(body: t.Union[bytes, bytearray, io.BufferedIOBase, io.IOBase, t.Iterable[bytes]]) -> bytes:
+def _as_bytes(body: bytes | bytearray | io.BufferedIOBase | io.IOBase | t.Iterable[bytes]) -> bytes:
     if isinstance(body, (bytes, bytearray)):
         return bytes(body)
     if hasattr(body, "read"):
         return body.read()  # type: ignore[attr-defined]
     # Fallback: assume iterable of bytes
     buf = bytearray()
-    for chunk in body:  # type: ignore[assignment]
+    for chunk in body:
         buf.extend(chunk)
     return bytes(buf)
 
 
-def put_object(*, bucket: str, key: str, body: t.Union[bytes, bytearray, io.BufferedIOBase, io.IOBase, t.Iterable[bytes]]) -> str:
+def put_object(
+    *,
+    bucket: str,
+    key: str,
+    body: bytes | bytearray | io.BufferedIOBase | io.IOBase | t.Iterable[bytes],
+) -> str:
     """
     Upload to S3-compatible store (MinIO). Returns a presigned GET URL.
     Creates the bucket if it does not exist.
@@ -75,4 +78,3 @@ def put_object(*, bucket: str, key: str, body: t.Union[bytes, bytearray, io.Buff
         ExpiresIn=_PRESIGN_TTL_SECONDS,
     )
     return url
-
