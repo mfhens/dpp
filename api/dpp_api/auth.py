@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import time
 import logging
+import threading
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -22,14 +23,27 @@ OIDC_ISSUER_URL = os.getenv("OIDC_ISSUER_URL", "http://keycloak:8080/realms/dpp"
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "dpp-api")  # if empty, audience is not verified
 OIDC_ALGS = [a.strip() for a in os.getenv("OIDC_ALGS", "RS256,PS256,ES256").split(",") if a.strip()]
 ALLOW_ANON_PUBLIC = os.getenv("ALLOW_ANON_PUBLIC", "1").lower() in {"1", "true", "yes"}
-DEMO_MODE = os.getenv("DEMO_MODE", "0").lower() in {"1", "true", "yes"}  # Allow anonymous POST for demos
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+
+# SECURITY: DEMO_MODE disables ALL authentication - NEVER use in production
+DEMO_MODE = os.getenv("DEMO_MODE", "0").lower() in {"1", "true", "yes"}
+if DEMO_MODE and ENVIRONMENT == "production":
+    logger.critical("🚨 SECURITY ALERT: DEMO_MODE is ENABLED in PRODUCTION environment!")
+    logger.critical("🚨 This disables ALL authentication and is a CRITICAL SECURITY RISK!")
+    logger.critical("🚨 Set DEMO_MODE=0 or ENVIRONMENT=development immediately!")
+    raise RuntimeError("DEMO_MODE cannot be enabled in production environment")
+if DEMO_MODE:
+    logger.warning("⚠️  DEMO_MODE ENABLED: Authentication is DISABLED for all requests")
+    logger.warning("⚠️  This should ONLY be used for demos in non-production environments")
+
 OPA_URL = os.getenv("OPA_URL")  # example: http://opa:8181/v1/data/dpp/allow
 
 HTTP_BEARER = HTTPBearer(auto_error=False)
 
-# Cache JWK clients per issuer
+# Cache JWK clients per issuer with thread-safe access
 _JWK_CLIENTS: Dict[str, PyJWKClient] = {}
 _JWK_CLIENTS_TS: Dict[str, float] = {}
+_JWK_CACHE_LOCK = threading.Lock()
 _JWK_TTL = float(os.getenv("JWK_CACHE_TTL_SECONDS", "300"))  # 5 min
 
 
@@ -53,14 +67,27 @@ def _get_realm_from_issuer(issuer: str) -> str:
 
 def _get_jwk_client(issuer: str) -> PyJWKClient:
     now = time.time()
+    
+    # First check without lock (fast path for cache hits)
     client = _JWK_CLIENTS.get(issuer)
     ts = _JWK_CLIENTS_TS.get(issuer, 0)
-    if client is None or (now - ts) > _JWK_TTL:
-        jwks_uri = f"{issuer}/protocol/openid-connect/certs"
-        client = PyJWKClient(jwks_uri)
-        _JWK_CLIENTS[issuer] = client
-        _JWK_CLIENTS_TS[issuer] = now
-    return client
+    
+    if client is not None and (now - ts) <= _JWK_TTL:
+        return client
+    
+    # Cache miss or expired - acquire lock and refresh
+    with _JWK_CACHE_LOCK:
+        # Double-check inside lock (another thread might have updated)
+        client = _JWK_CLIENTS.get(issuer)
+        ts = _JWK_CLIENTS_TS.get(issuer, 0)
+        
+        if client is None or (now - ts) > _JWK_TTL:
+            jwks_uri = f"{issuer}/protocol/openid-connect/certs"
+            client = PyJWKClient(jwks_uri)
+            _JWK_CLIENTS[issuer] = client
+            _JWK_CLIENTS_TS[issuer] = now
+        
+        return client
 
 
 def _decode_and_verify(token: str, issuer: str, audience: Optional[str]) -> Dict[str, Any]:
@@ -125,10 +152,52 @@ def _opa_allow(input_payload: Dict[str, Any]) -> bool:
         resp.raise_for_status()
         data = resp.json()
         # OPA returns {"result": true|false}
-        return bool(data.get("result", False))
-    except Exception:
-        # Fail open in the prototype
-        return True
+        return bool(data.get("result", {}).get("allow", False))
+    except Exception as e:
+        # SECURITY: Fail closed - deny access on OPA errors
+        logger.critical(f"OPA policy check failed: {e} - DENYING ACCESS for safety")
+        return False
+
+def _opa_mask(input_payload: Dict[str, Any]) -> List[str]:
+    if not OPA_URL:
+        return []
+    try:
+        resp = requests.post(OPA_URL, json={"input": input_payload}, timeout=2.0)
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("result", {}).get("mask", [])
+    except Exception as e:
+        logger.error(f"OPA mask check failed: {e} - No masking applied")
+        return []
+
+def apply_masking(payload: Dict[str, Any], mask_paths: List[str]) -> Dict[str, Any]:
+    """
+    Remove fields from payload based on dot-notation paths in mask_paths.
+    Example: mask_paths=["provenance.supplierIds"]
+    """
+    if not mask_paths:
+        return payload
+    
+    import copy
+    masked = copy.deepcopy(payload)
+    
+    for path in mask_paths:
+        parts = path.split(".")
+        current = masked
+        
+        # Traverse to the parent of the key to delete
+        for i, part in enumerate(parts[:-1]):
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                break
+        else:
+            # Reached the parent, delete the key
+            key = parts[-1]
+            if isinstance(current, dict) and key in current:
+                del current[key]
+                
+    return masked
 
 
 def _anonymous_principal() -> Principal:

@@ -695,17 +695,11 @@ export default async function Page({ params, searchParams }: { params: { id: str
                     <th>Standard Transport Quantity</th>
                     <th>Previous Transport Footprint</th>
                     <th>Current Transport Footprint</th>
-                    <th>Quantity Savings</th>
                     <th>Footprint Change</th>
                   </tr>
                 </thead>
                 <tbody>
                   {locations.map((loc, i) => {
-                    const quantitySavingsValue = loc.quantitySavings || (
-                      loc.standardTransportQuantity > 0 
-                        ? `${(((loc.adjustedTransportQuantity - loc.standardTransportQuantity) / loc.standardTransportQuantity) * 100).toFixed(1)}%`
-                        : '-'
-                    );
                     const footprintChangeValue = loc.footprintChange || (
                       loc.previousTransportFootprint > 0
                         ? `${(((loc.currentTransportFootprint - loc.previousTransportFootprint) / loc.previousTransportFootprint) * 100).toFixed(1)}%`
@@ -713,11 +707,6 @@ export default async function Page({ params, searchParams }: { params: { id: str
                     );
                     
                     // Determine cell colors based on positive/negative values
-                    const quantitySavingsClass = quantitySavingsValue.startsWith('-') && quantitySavingsValue !== '-' 
-                      ? 'text-green-700 font-semibold' 
-                      : quantitySavingsValue !== '-' 
-                      ? 'text-red-700 font-semibold' 
-                      : '';
                     const footprintChangeClass = footprintChangeValue.startsWith('-') && footprintChangeValue !== '-'
                       ? 'text-green-700 font-semibold'
                       : footprintChangeValue !== '-' && !footprintChangeValue.startsWith('-')
@@ -732,7 +721,6 @@ export default async function Page({ params, searchParams }: { params: { id: str
                         <td>{loc.standardTransportQuantity}</td>
                         <td>{loc.previousTransportFootprint}</td>
                         <td>{loc.currentTransportFootprint}</td>
-                        <td className={quantitySavingsClass}>{quantitySavingsValue}</td>
                         <td className={footprintChangeClass}>{footprintChangeValue}</td>
                       </tr>
                     );
@@ -746,8 +734,8 @@ export default async function Page({ params, searchParams }: { params: { id: str
               <div className={`ey-card p-4 mt-4 ${transportCarbonFootprint.changeAbsolute < 0 ? 'bg-green-50' : 'bg-amber-50'}`}>
                 <p className={`text-base font-medium ${transportCarbonFootprint.changeAbsolute < 0 ? 'text-green-900' : 'text-amber-900'}`}>
                   {transportCarbonFootprint.changeAbsolute < 0 
-                    ? `✓ The transport carbon footprint has been reduced by ${Math.abs(transportCarbonFootprint.changeAbsolute)} ${transportCarbonFootprint.unit || 'kg CO2e'} (${Math.abs(transportCarbonFootprint.change || 0)}%) through optimized routing.`
-                    : `⚠ The transport carbon footprint has increased by ${transportCarbonFootprint.changeAbsolute} ${transportCarbonFootprint.unit || 'kg CO2e'} (+${transportCarbonFootprint.change || 0}%) due to new routes or demand changes.`
+                    ? `✓ The transport carbon footprint can potentially be reduced by ${Math.abs(transportCarbonFootprint.changeAbsolute)} ${transportCarbonFootprint.unit || 'kg CO2e'} (${Math.abs(transportCarbonFootprint.change || 0)}%) through optimized routing.`
+                    : `⚠ The transport carbon footprint will potentially increase by ${transportCarbonFootprint.changeAbsolute} ${transportCarbonFootprint.unit || 'kg CO2e'} (+${transportCarbonFootprint.change || 0}%) due to new routes or demand changes.`
                   }
                 </p>
               </div>

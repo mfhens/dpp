@@ -100,3 +100,25 @@ allow_write if {
   in_realm("b2b")
   has_scope("dpp:write")
 }
+
+# -----------------------
+# Data Filtering Rules
+# -----------------------
+
+# By default, mask nothing
+mask = m {
+  m := { path | should_mask[path] }
+}
+
+# Define what fields to mask
+should_mask["planningInsights"] { is_public_view }
+should_mask["provenance.supplierIds"] { is_public_view }
+should_mask["provenance.facilityIds"] { is_public_view }
+should_mask["provenance.operatorId"] { is_public_view }
+should_mask["documents"] { is_public_view } 
+
+# Helper to determine if we are in a public view context
+is_public_view {
+  input.access_tier == "public"
+}
+

@@ -7,7 +7,9 @@
     "start": "node server.js",
     "start:local": "next start -p 3000",
     "lint": "next lint",
-    "postinstall": "echo 'Post-install complete'"
+    "postinstall": "echo 'Post-install complete'",
+    "azure:build": "npm ci --production=false && npm run build",
+    "azure:postbuild": "echo 'Build artifacts ready'"
   },
   "engines": {
     "node": ">=18.0.0 <21.0.0",

@@ -16,7 +16,7 @@ import json
 from jsonschema import Draft202012Validator
 
 # Auth and service utilities (your existing modules)
-from .auth import oidc_oauth2
+from .auth import oidc_oauth2, _opa_mask, apply_masking, Principal
 from .services.identifiers import normalize_id, generate_dl
 from .services.object_store import put_object
 from .services.audit import audit_append
@@ -116,10 +116,39 @@ def find_schema_path() -> Path:
     logger.error(f"❌ Schema file not found. Attempted paths: {attempted}")
     raise FileNotFoundError(f"Schema file not found. Attempted: {attempted}")
 
-SCHEMA_PATH = find_schema_path()
-with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
-    CORE_SCHEMA = json.load(f)
-SCHEMA_VALIDATOR = Draft202012Validator(CORE_SCHEMA)
+# Load schema with comprehensive error handling
+# Allow app to start even if schema is missing (for health checks)
+# but fail validation gracefully
+SCHEMA_PATH = None
+CORE_SCHEMA = None
+SCHEMA_VALIDATOR = None
+
+try:
+    SCHEMA_PATH = find_schema_path()
+    logger.info(f"📋 Loading schema from: {SCHEMA_PATH}")
+    
+    with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+        CORE_SCHEMA = json.load(f)
+    
+    SCHEMA_VALIDATOR = Draft202012Validator(CORE_SCHEMA)
+    logger.info("✅ Schema loaded and validator initialized successfully")
+    
+except FileNotFoundError as e:
+    logger.critical(f"🚨 CRITICAL: Schema file not found!")
+    logger.critical(f"🚨 The API will start but payload validation will FAIL")
+    logger.critical(f"🚨 Error: {e}")
+    # Don't raise - allow app to start for health checks
+    
+except json.JSONDecodeError as e:
+    logger.critical(f"🚨 CRITICAL: Schema file is invalid JSON!")
+    logger.critical(f"🚨 The API will start but payload validation will FAIL")
+    logger.critical(f"🚨 Error: {e}")
+    
+except Exception as e:
+    logger.critical(f"🚨 CRITICAL: Failed to initialize schema validator!")
+    logger.critical(f"🚨 The API will start but payload validation will FAIL")
+    logger.critical(f"🚨 Error: {e}")
+    logger.exception("Full traceback:")
 
 
 # -----------------------------
@@ -215,6 +244,29 @@ def startup() -> None:
     else:
         logger.info("ℹ️  File watcher disabled (set ENABLE_FILE_WATCHER=true to enable)")
     
+    # Security and configuration warnings
+    demo_mode = os.getenv("DEMO_MODE", "0").lower() in {"1", "true", "yes"}
+    allow_anon = os.getenv("ALLOW_ANON_PUBLIC", "1").lower() in {"1", "true", "yes"}
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    opa_url = os.getenv("OPA_URL")
+    
+    if demo_mode:
+        logger.warning("⚠️  SECURITY WARNING: DEMO_MODE is ENABLED - Authentication is DISABLED")
+        logger.warning("⚠️  This is a CRITICAL SECURITY RISK in production environments")
+    
+    if allow_anon and environment == "production":
+        logger.warning("⚠️  SECURITY WARNING: Anonymous GET requests allowed in PRODUCTION")
+        logger.warning("⚠️  Consider setting ALLOW_ANON_PUBLIC=0 for production")
+    
+    if not opa_url and environment == "production":
+        logger.warning("⚠️  SECURITY WARNING: OPA policy enforcement is DISABLED")
+        logger.warning("⚠️  Set OPA_URL to enable policy-based access control")
+    
+    if SCHEMA_VALIDATOR is None:
+        logger.critical("🚨 CRITICAL: Schema validator NOT LOADED!")
+        logger.critical("🚨 Payload validation will FAIL - API is NOT operational")
+        logger.critical("🚨 Check schema file location and fix before accepting traffic")
+    
     logger.info("✅ DPP API startup complete")
 
 
@@ -266,6 +318,13 @@ def _parse_iso8601(value: str) -> dt.datetime:
 
 def _validate_payload(payload: dict) -> None:
     """Validate DPP payload against canonical schema."""
+    if SCHEMA_VALIDATOR is None:
+        logger.error("❌ Schema validator not initialized - cannot validate payload")
+        raise HTTPException(
+            status_code=500,
+            detail="Schema validator not available. Server configuration error."
+        )
+    
     logger.debug("Validating payload against schema...")
     errors = sorted(SCHEMA_VALIDATOR.iter_errors(payload), key=lambda e: e.path)
     if errors:
@@ -361,13 +420,17 @@ def search_dpps(
     logger.debug(f"   Query: {q}, Limit: {limit}")
     
     try:
+        from sqlalchemy.orm import joinedload
+        from sqlalchemy import func
+        
         # Normalize search query
         normalized_query = normalize_id(q)
         logger.debug(f"   Normalized query: {normalized_query}")
         
-        # Search by product_id (case-insensitive)
+        # Search by product_id (case-insensitive) with eager loading of versions
         dpps_by_product = (
             db.query(Dpp)
+            .options(joinedload(Dpp.versions))
             .filter(Dpp.product_id.ilike(f"%{normalized_query}%"))
             .limit(limit)
             .all()
@@ -377,10 +440,12 @@ def search_dpps(
         seen_ids = set()
         
         # Add results from product_id search
+        # Versions are already loaded, no N+1 query
         for dpp in dpps_by_product:
             if dpp.dpp_id not in seen_ids:
                 seen_ids.add(dpp.dpp_id)
-                latest = get_latest_dpp_version(db, dpp.dpp_id)
+                # Get latest from already-loaded versions (no additional query)
+                latest = dpp.versions[0] if dpp.versions else None
                 results.append({
                     "id": dpp.dpp_id,
                     "product_id": dpp.product_id,
@@ -391,9 +456,13 @@ def search_dpps(
         
         # Also search by model in payload (if we haven't hit limit)
         if len(results) < limit:
+            from sqlalchemy.orm import joinedload
+            
             remaining_limit = limit - len(results)
+            # Use eager loading to avoid N+1 queries
             versions = (
                 db.query(DppVersion)
+                .options(joinedload(DppVersion.dpp))
                 .order_by(DppVersion.dpp_id, DppVersion.version.desc())
                 .distinct(DppVersion.dpp_id)
                 .limit(remaining_limit * 2)  # Get more to filter
@@ -411,7 +480,8 @@ def search_dpps(
                 # Case-insensitive model match
                 if model and normalized_query in model.lower():
                     seen_ids.add(v.dpp_id)
-                    dpp = db.query(Dpp).filter(Dpp.dpp_id == v.dpp_id).first()
+                    # DPP is already loaded via joinedload, no additional query
+                    dpp = v.dpp
                     if dpp:
                         results.append({
                             "id": dpp.dpp_id,
@@ -464,17 +534,26 @@ def create_dpp(
     # prefer payload.dppUrl; else build from API base (works for scanning)
     dpp_url = cmd.payload.get("dppUrl")
     if not dpp_url:
-        base = os.env.get("PUBLIC_PORTAL_BASE", "http://localhost:3000")
+        base = os.getenv("PUBLIC_PORTAL_BASE", "http://localhost:3000")
         dpp_url = f"{base}/dpp/{dpp_id}"
     logger.debug(f"   DPP URL: {dpp_url}")
 
     # 3) if header exists -> append new version
-    header = db.query(Dpp).filter(Dpp.dpp_id == dpp_id).first()
+    # Use pessimistic locking to prevent race conditions when multiple requests
+    # try to create versions concurrently
+    header = db.query(Dpp).filter(Dpp.dpp_id == dpp_id).with_for_update().first()
     ts = _utcnow()
 
     if header:
         logger.info(f"   DPP exists, creating new version")
-        latest = get_latest_dpp_version(db, dpp_id)
+        # Get latest version with locking to prevent race conditions
+        latest = (
+            db.query(DppVersion)
+            .filter(DppVersion.dpp_id == dpp_id)
+            .order_by(DppVersion.version.desc())
+            .with_for_update()
+            .first()
+        )
         next_ver = (latest.version if latest else 0) + 1
 
         v = DppVersion(
@@ -524,7 +603,8 @@ def create_dpp(
 def resolve_dpp(
     dpp_id: str,
     at: Optional[str] = None,
-    token=Depends(oidc_oauth2),
+    token: Principal = Depends(oidc_oauth2),
+    request: Request = None,
     db: Session = Depends(get_session),
 ):
     actor = getattr(token, "sub", "unknown")
@@ -566,8 +646,32 @@ def resolve_dpp(
         logger.warning(f"   ❌ DPP not found: {dpp_id}")
         raise HTTPException(status_code=404, detail="Not found")
     
+    # ---------------------------
+    # Data Masking / Filtering
+    # ---------------------------
+    path_elems = [p for p in request.url.path.split("/") if p] if request else ["dpp", dpp_id]
+    access_tier = request.headers.get("x-access-tier", "public") if request else "public"
+    
+    opa_input = {
+        "user": {"sub": token.sub, "realm": token.realm, "scopes": token.scopes},
+        "method": "GET",
+        "path": path_elems,
+        "access_tier": access_tier,
+        "dpp_id": dpp_id,
+    }
+    
+    # Ask OPA what to mask
+    mask_paths = _opa_mask(opa_input)
+    final_payload = v.payload
+    
+    if mask_paths:
+        logger.debug(f"   🎭 Masking fields: {mask_paths}")
+        final_payload = apply_masking(v.payload, mask_paths)
+    else:
+        logger.debug("   ✨ No masking applied")
+
     logger.info(f"   ✅ Found DPP version {v.version}")
-    return {"dpp_id": dpp_id, "version": v.version, "payload": v.payload}
+    return {"dpp_id": dpp_id, "version": v.version, "payload": final_payload}
 
 
 @app.delete("/dpp/{dpp_id}", response_model=dict)
@@ -646,14 +750,20 @@ def create_dpp_version(
     if expected_prev_version is not None:
         logger.debug(f"   Expected previous version: {expected_prev_version}")
     
-    # Ensure header exists
-    dpp = db.query(Dpp).filter(Dpp.dpp_id == dpp_id).first()
+    # Ensure header exists and lock it to prevent race conditions
+    dpp = db.query(Dpp).filter(Dpp.dpp_id == dpp_id).with_for_update().first()
     if not dpp:
         logger.warning(f"   ❌ DPP not found: {dpp_id}")
         raise HTTPException(status_code=404, detail="DPP not found")
 
-    # Determine current latest version under transaction
-    latest = get_latest_dpp_version(db, dpp_id)
+    # Determine current latest version with locking to prevent concurrent version creation
+    latest = (
+        db.query(DppVersion)
+        .filter(DppVersion.dpp_id == dpp_id)
+        .order_by(DppVersion.version.desc())
+        .with_for_update()
+        .first()
+    )
 
     prev = latest.version if latest else 0
     if expected_prev_version is not None and expected_prev_version != prev:
